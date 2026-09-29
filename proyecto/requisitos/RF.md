@@ -1,45 +1,78 @@
 # Requerimientos Funcionales
 
-- RF-01. El sistema deberá permitir registrar pacientes con sus datos personales y de contacto.
+## Gestión de pacientes
 
-- RF-02. El sistema deberá permitir registrar y gestionar la información de los médicos.
+- RF-01. El sistema deberá permitir registrar pacientes con nombre, apellidos, documento de identidad, fecha de nacimiento, teléfono y correo electrónico. El nombre, los apellidos, el documento de identidad y el teléfono serán obligatorios.
 
-- RF-03. El sistema deberá permitir registrar y gestionar las especialidades médicas disponibles.
+## Gestión de médicos y especialidades
 
-- RF-04. El sistema deberá permitir asociar a cada médico con una o más especialidades médicas.
+- RF-02. El sistema deberá permitir al administrador registrar, consultar, modificar y cambiar el estado activo o inactivo de los médicos.
 
-- RF-05. El sistema deberá permitir a los médicos definir y actualizar sus horarios disponibles para atención.
+- RF-03. El sistema deberá permitir al administrador registrar, consultar, modificar y cambiar el estado activo o inactivo de las especialidades médicas.
 
-- RF-06. El sistema deberá permitir a los pacientes consultar las especialidades médicas disponibles.
+- RF-04. El sistema deberá permitir asociar uno o más médicos con una o más especialidades médicas.
 
-- RF-07. El sistema deberá permitir a los pacientes consultar los médicos disponibles según la especialidad seleccionada.
+## Gestión de horarios
 
-- RF-08. El sistema deberá permitir consultar los horarios disponibles de un médico.
+- RF-05. El sistema deberá permitir al médico y al personal autorizado definir y actualizar los días y bloques horarios disponibles para atención.
 
-- RF-09. El sistema deberá permitir al paciente reservar una cita seleccionando especialidad, médico, fecha y horario disponible.
+- RF-06. El sistema deberá permitir a los pacientes consultar las especialidades médicas que se encuentren activas y tengan médicos asociados.
 
-- RF-10. El sistema deberá permitir al personal de admisión o recepción registrar una cita en representación de un paciente.
+- RF-07. El sistema deberá permitir a los pacientes consultar los médicos activos asociados a una especialidad y que tengan horarios disponibles para atención.
 
-- RF-11. El sistema deberá permitir reprogramar una cita hacia otro horario disponible.
+- RF-08. El sistema deberá permitir consultar los horarios futuros disponibles de un médico dentro del período habilitado para reservas.
 
-- RF-12. El sistema deberá permitir cancelar una cita previamente registrada.
+## Gestión de citas
 
-- RF-13. El sistema deberá permitir actualizar el estado de una cita como programada, confirmada, en atención, finalizada, cancelada o no asistida.
+- RF-09. El sistema deberá permitir al paciente reservar una cita seleccionando especialidad, médico, fecha y horario disponible. Antes de confirmar la reserva, el sistema deberá verificar nuevamente que el horario continúe disponible.
 
-- RF-14. El sistema deberá permitir al paciente consultar sus citas programadas.
+- RF-10. El sistema deberá permitir al personal de admisión o recepción registrar una cita en representación de un paciente, de acuerdo con los permisos asignados a su rol.
 
-- RF-15. El sistema deberá permitir al paciente consultar el historial de sus citas.
+- RF-11. El sistema deberá permitir al paciente y al personal de admisión autorizado reprogramar una cita hacia otro horario disponible del médico correspondiente, respetando las políticas de reprogramación definidas por la institución.
 
-- RF-16. El sistema deberá permitir al médico consultar su agenda de citas programadas.
+- RF-12. El sistema deberá permitir al paciente y al personal de admisión autorizado cancelar una cita, respetando las políticas de cancelación definidas por la institución.
 
-- RF-17. El sistema deberá permitir al personal de admisión o recepción consultar la disponibilidad de médicos y horarios.
+## Estados de la cita
 
-- RF-18. El sistema deberá permitir identificar si una cita corresponde a atención presencial o atención virtual.
+- RF-13. El sistema deberá permitir gestionar los estados de una cita: programada, confirmada, en atención, finalizada, cancelada y no asistida.
 
-- RF-19. Para las citas virtuales, el sistema deberá proporcionar al paciente y al médico la información necesaria para acceder a la atención.
+Las transiciones permitidas serán:
 
-- RF-20. El sistema deberá permitir registrar la fecha y hora de inicio y finalización de una atención.
+- Programada → Confirmada.
+- Programada → Cancelada.
+- Confirmada → En atención.
+- Confirmada → Cancelada.
+- Confirmada → No asistida.
+- En atención → Finalizada.
 
-- RF-21. El sistema deberá permitir al administrador gestionar usuarios y roles del sistema.
+Una cita cancelada o finalizada no podrá volver a un estado anterior.
 
-- RF-22. El sistema deberá permitir consultar el historial de cambios realizados sobre una cita.
+## Consulta de citas
+
+- RF-14. El sistema deberá permitir al paciente consultar sus citas futuras programadas o confirmadas.
+
+- RF-15. El sistema deberá permitir al paciente consultar su historial de citas finalizadas, canceladas y no asistidas, pudiendo filtrar los resultados por fecha y estado.
+
+- RF-16. El sistema deberá permitir al médico consultar su agenda de citas programadas y confirmadas, pudiendo filtrar las citas por fecha y estado.
+
+- RF-17. El sistema deberá permitir al personal de admisión o recepción consultar la disponibilidad de médicos y horarios de las especialidades habilitadas para la gestión de citas.
+
+## Atención presencial y virtual
+
+- RF-18. Durante el registro de una cita, el sistema deberá permitir identificar si la atención será presencial o virtual, siempre que la modalidad esté habilitada para el médico y la especialidad seleccionados.
+
+- RF-19. Para una cita virtual, el sistema deberá proporcionar al paciente y al médico la información necesaria para acceder al servicio externo de atención virtual, como enlace de acceso e instrucciones correspondientes.
+
+## Registro de la atención
+
+- RF-20. El sistema deberá permitir al médico registrar el inicio y la finalización de una atención, almacenando la fecha y hora correspondientes.
+
+## Usuarios y roles
+
+- RF-21. El sistema deberá permitir al administrador registrar, consultar, modificar, activar y desactivar usuarios, así como asignar o revocar los roles correspondientes.
+
+El administrador podrá gestionar los roles de paciente, médico, personal de admisión o recepción y administrador.
+
+## Historial de modificaciones
+
+- RF-22. El sistema deberá permitir consultar el historial de modificaciones realizadas sobre una cita, registrando como mínimo la fecha, hora, usuario responsable, acción realizada, valor anterior y valor actualizado.

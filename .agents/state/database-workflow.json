@@ -1,0 +1,9 @@
+{
+  "workflow": "02_database_workflow",
+  "current_step": 1,
+  "completed": [],
+  "blocked": false,
+  "next": "Paso 01 — Lectura y trazabilidad",
+  "last_output": null,
+  "outputs": {}
+}
