@@ -30,7 +30,9 @@
 
 - CA-011. Antes de confirmar una reserva, el sistema deberá verificar nuevamente que el horario continúe disponible.
 
-- CA-012. Si dos usuarios intentan reservar simultáneamente el mismo horario para el mismo médico, únicamente una reserva deberá confirmarse.
+- CA-012. Si dos o más usuarios intentan reservar simultáneamente el mismo horario para el mismo médico, únicamente una reserva deberá confirmarse correctamente.
+
+Las demás solicitudes deberán ser rechazadas indicando que el horario ya no se encuentra disponible.
 
 - CA-013. Una vez confirmada una cita, el horario correspondiente deberá dejar de mostrarse como disponible.
 
@@ -38,17 +40,21 @@
 
 ## Reprogramación y cancelación
 
-- CA-015. Al reprogramar una cita, el sistema deberá reservar el nuevo horario y liberar el horario anterior.
+- CA-015. Al reprogramar una cita, el sistema deberá reservar el nuevo horario y liberar el horario anterior únicamente cuando la reprogramación haya sido confirmada correctamente.
 
 - CA-016. La reprogramación únicamente deberá realizarse hacia un horario disponible.
 
-- CA-017. Al cancelar una cita, el sistema deberá actualizar su estado a cancelada y liberar el horario reservado.
+Antes de confirmar la reprogramación, el sistema deberá verificar nuevamente la disponibilidad del nuevo horario.
+
+- CA-017. Al cancelar una cita, el sistema deberá actualizar su estado a Cancelada y liberar el horario reservado.
 
 - CA-018. El sistema deberá impedir la reprogramación o cancelación cuando no se cumplan las políticas establecidas por la institución.
 
+Los valores temporales concretos de estas políticas deberán definirse antes de la implementación definitiva.
+
 ## Estados de las citas
 
-- CA-019. El sistema deberá permitir las siguientes transiciones:
+- CA-019. El sistema deberá permitir únicamente las siguientes transiciones:
 
   - Programada → Confirmada.
   - Programada → Cancelada.
@@ -63,13 +69,25 @@
 
 ## Consulta e historial
 
-- CA-022. El paciente autenticado deberá poder consultar únicamente sus propias citas futuras programadas o confirmadas.
+- CA-022. El paciente autenticado deberá poder consultar únicamente sus propias citas vigentes en estado:
 
-- CA-023. El paciente deberá poder consultar su historial de citas finalizadas, canceladas y no asistidas.
+  - Programada.
+  - Confirmada.
+  - En atención.
+
+- CA-023. El paciente deberá poder consultar su historial de citas:
+
+  - Finalizadas.
+  - Canceladas.
+  - No asistidas.
 
 - CA-024. El paciente deberá poder filtrar su historial por fecha y estado.
 
-- CA-025. El médico deberá poder consultar únicamente las citas correspondientes a su agenda.
+- CA-025. El médico deberá poder consultar únicamente las citas correspondientes a su propia agenda en estado:
+
+  - Programada.
+  - Confirmada.
+  - En atención.
 
 - CA-026. El médico deberá poder filtrar su agenda por fecha y estado.
 
@@ -77,19 +95,27 @@
 
 ## Atención presencial y virtual
 
-- CA-028. Durante la creación de una cita, el sistema deberá permitir seleccionar la modalidad presencial o virtual cuando ambas estén disponibles.
+- CA-028. Durante la creación de una cita, el sistema deberá permitir seleccionar la modalidad presencial o virtual cuando ambas se encuentren habilitadas para el médico y la especialidad correspondientes.
 
 - CA-029. Para una cita virtual, el sistema deberá mostrar al paciente y al médico el enlace o información necesaria para acceder al servicio externo de atención virtual.
 
-- CA-030. Una cita presencial no deberá requerir información de acceso virtual.
+- CA-030. Una cita presencial no deberá requerir información de acceso al servicio virtual.
 
 ## Registro de atención
 
 - CA-031. Al iniciar una atención, el médico deberá poder registrar la fecha y hora de inicio.
 
-- CA-032. Al finalizar la atención, el médico deberá poder registrar la fecha y hora de finalización.
+Al registrarse correctamente el inicio, el estado de la cita deberá cambiar de:
 
-- CA-033. Una cita únicamente deberá poder marcarse como finalizada después de haber pasado por el estado "En atención".
+**Confirmada → En atención**
+
+- CA-032. Al finalizar una atención, el médico deberá poder registrar la fecha y hora de finalización.
+
+Al registrarse correctamente la finalización, el estado deberá cambiar de:
+
+**En atención → Finalizada**
+
+- CA-033. Una cita únicamente deberá poder marcarse como Finalizada después de haber pasado por el estado "En atención".
 
 ## Usuarios y roles
 
@@ -97,35 +123,101 @@
 
 - CA-035. El administrador deberá poder asignar y revocar roles a los usuarios.
 
-- CA-036. Un usuario no deberá poder acceder a funciones que no correspondan a su rol.
+- CA-036. Un usuario no deberá poder acceder a funciones que no correspondan a su rol o para las cuales no posea autorización.
 
 ## Historial y auditoría
 
-- CA-037. Cada modificación de una cita deberá registrar como mínimo fecha, hora, usuario responsable y acción realizada.
+- CA-037. Cada modificación realizada sobre una cita deberá registrar como mínimo:
 
-- CA-038. Cuando se modifique información de una cita, el historial deberá conservar el valor anterior y el valor actualizado.
+  - fecha;
+  - hora;
+  - usuario responsable;
+  - acción realizada;
+  - valor anterior;
+  - valor actualizado.
 
-- CA-039. El historial de modificaciones no deberá eliminarse cuando una cita sea cancelada o finalizada.
+- CA-038. Cuando se modifique información de una cita, el historial deberá permitir identificar claramente el valor anterior y el nuevo valor registrado.
+
+- CA-039. El historial de modificaciones no deberá eliminarse automáticamente cuando una cita sea cancelada o finalizada.
+
+Para el alcance académico del proyecto, las citas históricas y los registros de auditoría deberán conservarse durante un periodo mínimo de 5 años.
+
+El periodo deberá ser configurable y podrá modificarse posteriormente de acuerdo con una política institucional formal.
+
+## Reglas de superposición
+
+- CA-040. El sistema deberá impedir que un paciente posea dos citas activas que se superpongan en el mismo horario, independientemente de si la operación es realizada:
+
+  - directamente por el paciente;
+  - por personal de admisión o recepción en representación del paciente.
+
+La verificación deberá realizarse antes de confirmar una nueva cita o una reprogramación.
+
+## Contingencia de atención virtual
+
+- CA-041. Si se detecta una falla del servicio externo de atención virtual o un problema de conexión durante una cita virtual, el sistema no deberá:
+
+  - eliminar automáticamente la cita;
+  - cancelar automáticamente la cita;
+  - marcar automáticamente al paciente como No asistido;
+  - cambiar automáticamente la modalidad de atención.
+
+- CA-042. Ante una falla detectada del servicio virtual, el sistema deberá mostrar información visible al usuario afectado indicando que existe un problema con la conexión o disponibilidad del servicio.
+
+Cuando paciente y médico se encuentren utilizando el sistema, ambos deberán poder conocer la existencia del incidente.
+
+- CA-043. Cuando una atención virtual no pueda continuar, el médico o el personal autorizado deberá poder gestionar, según corresponda:
+
+  - reprogramación hacia otro horario disponible;
+  - cambio a modalidad presencial cuando se encuentre habilitada;
+  - resolución manual de la incidencia.
+
+Toda reprogramación o cambio de modalidad deberá quedar registrada en el historial de modificaciones.
+
+---
 
 # Criterios de aceptación de requisitos no funcionales
 
 ## Rendimiento y capacidad
 
-- CA-RNF-01. Bajo una carga de hasta 100 usuarios concurrentes, las operaciones principales de consulta, registro, reprogramación y cancelación deberán responder en un tiempo máximo de 3 segundos.
+- CA-RNF-01. Bajo una carga de hasta 100 usuarios concurrentes, las operaciones principales de:
 
-- CA-RNF-02. El sistema deberá soportar una carga objetivo de 500 transacciones de negocio por hora.
+  - consulta de especialidades;
+  - consulta de médicos;
+  - consulta de horarios;
+  - registro de citas;
+  - reprogramación;
+  - cancelación;
 
-- CA-RNF-03. Durante periodos de alta demanda, el sistema deberá soportar hasta 1.000 transacciones de negocio por hora.
+deberán generar una respuesta del backend en un tiempo máximo de 3 segundos.
+
+La medición deberá realizarse desde que el backend recibe la solicitud hasta que genera la respuesta correspondiente, en un entorno controlado y reproducible.
+
+No deberá incluirse dentro de esta medición la latencia externa propia de la conexión a Internet del usuario.
+
+- CA-RNF-02. El sistema deberá soportar una carga normal inicial de 500 transacciones de negocio por hora.
+
+- CA-RNF-03. Durante periodos de alta demanda, el sistema deberá soportar un pico inmediato de hasta 1.000 transacciones de negocio por hora.
 
 ## Escalabilidad
 
-- CA-RNF-04. El diseño del sistema deberá permitir evaluar un escenario de crecimiento de hasta 10 veces la carga inicial sin modificar las reglas funcionales del sistema.
+- CA-RNF-04. El diseño del sistema deberá permitir evolucionar desde una carga normal inicial de 500 transacciones por hora hasta un escenario futuro de 5.000 transacciones por hora.
+
+Este escenario representa un crecimiento de 10 veces la carga inicial.
+
+El crecimiento no deberá requerir modificaciones de:
+
+- los requerimientos funcionales;
+- las reglas principales del negocio;
+- el comportamiento funcional esperado.
+
+Podrán realizarse cambios técnicos de infraestructura, configuración, optimización, índices, replicación o escalamiento.
 
 ## Seguridad
 
-- CA-RNF-05. Un usuario no autenticado no deberá poder acceder a funciones protegidas.
+- CA-RNF-05. Un usuario no autenticado no deberá poder acceder a funciones protegidas del sistema.
 
-- CA-RNF-06. Un usuario autenticado deberá acceder únicamente a las funciones permitidas por su rol.
+- CA-RNF-06. Un usuario autenticado deberá acceder únicamente a las funciones permitidas por su rol y permisos asignados.
 
 - CA-RNF-07. Las credenciales de los usuarios no deberán almacenarse en texto plano.
 
@@ -133,34 +225,139 @@
 
 ## Sesiones
 
-- CA-RNF-09. Cuando una sesión supere el periodo de inactividad configurado, el sistema deberá cerrarla automáticamente y solicitar nuevamente autenticación.
+- CA-RNF-09. Cuando una sesión autenticada alcance **15 minutos consecutivos de inactividad**, el sistema deberá:
+
+  - finalizar automáticamente la sesión;
+  - impedir el acceso posterior a funciones protegidas con la sesión expirada;
+  - solicitar nuevamente autenticación al usuario.
+
+El tiempo deberá mantenerse configurable para permitir modificaciones posteriores de la política de seguridad.
 
 ## Disponibilidad y recuperación
 
-- CA-RNF-10. La disponibilidad mensual del sistema deberá ser igual o superior al 99 %, excluyendo mantenimientos programados.
+- CA-RNF-10. La disponibilidad mensual del sistema deberá ser igual o superior al 99 %.
 
-- CA-RNF-11. Los mecanismos de respaldo y recuperación deberán permitir una pérdida máxima de información equivalente a un RPO de 60 minutos.
+Los mantenimientos previamente programados y comunicados podrán excluirse del cálculo.
 
-- CA-RNF-12. Ante una falla que requiera recuperación, el servicio deberá poder restablecerse dentro de un RTO máximo de 120 minutos.
+Las interrupciones no programadas deberán contabilizarse como indisponibilidad.
+
+- CA-RNF-11. Los mecanismos de respaldo y recuperación deberán permitir que, ante una falla con pérdida de información, el punto recuperable no sea anterior a 60 minutos respecto al momento del incidente.
+
+Por tanto, deberá cumplirse un:
+
+**RPO máximo de 60 minutos.**
+
+- CA-RNF-12. Ante una falla que requiera recuperación, las operaciones principales del servicio deberán poder restablecerse dentro de un:
+
+**RTO máximo de 120 minutos.**
+
+El procedimiento de recuperación deberá poder ser comprobado mediante una prueba de restauración.
 
 ## Integridad
 
-- CA-RNF-13. No deberá existir más de una cita confirmada para el mismo médico, fecha y horario.
+- CA-RNF-13. No deberá existir más de una cita confirmada para el mismo médico, fecha y horario cuando las reservas sean incompatibles.
 
-- CA-RNF-14. El sistema deberá rechazar registros que no contengan los datos obligatorios o que presenten formatos inválidos.
+Cuando existan solicitudes concurrentes sobre el mismo horario, solamente una deberá confirmarse correctamente.
+
+- CA-RNF-14. El sistema deberá rechazar registros que:
+
+  - no contengan los datos obligatorios;
+  - presenten formatos inválidos;
+  - incumplan las reglas de validación definidas para el dato correspondiente.
+
+Las reglas específicas de formato que todavía no hayan sido definidas deberán establecerse antes de la implementación definitiva.
 
 ## Usabilidad
 
-- CA-RNF-15. Las funciones principales deberán poder utilizarse desde computadora, tableta y teléfono móvil sin pérdida de funcionalidad.
+- CA-RNF-15. Las funciones principales deberán poder utilizarse desde:
 
-- CA-RNF-16. En una prueba de usabilidad, al menos el 80 % de los participantes deberá poder consultar disponibilidad y reservar una cita sin ayuda externa.
+  - computadora;
+  - tableta;
+  - teléfono móvil;
+
+sin pérdida de las funciones que correspondan al rol del usuario.
+
+Las funciones principales comprenden, como mínimo:
+
+- consulta de disponibilidad;
+- reserva de citas;
+- reprogramación;
+- cancelación;
+- consulta de citas.
+
+- CA-RNF-16. En una prueba de usabilidad, al menos el 80 % de los participantes deberá completar sin ayuda externa las tareas principales de:
+
+  - consultar especialidades;
+  - consultar médicos;
+  - consultar horarios disponibles;
+  - seleccionar fecha y horario;
+  - completar la reserva de una cita.
+
+La prueba deberá registrar como mínimo:
+
+- perfil del participante;
+- dispositivo utilizado;
+- navegador;
+- tareas realizadas;
+- resultado;
+- necesidad o no de asistencia.
 
 ## Observabilidad y auditoría
 
-- CA-RNF-17. El sistema deberá registrar errores de aplicación, intentos fallidos de autenticación, cambios de estado de citas y fallas en operaciones críticas.
+- CA-RNF-17. El sistema deberá registrar eventos operativos relacionados como mínimo con:
 
-- CA-RNF-18. Cada modificación de una cita deberá registrar fecha, hora y usuario responsable.
+  - errores de aplicación;
+  - intentos fallidos de autenticación;
+  - fallas en operaciones críticas;
+  - errores de integración con servicios externos;
+  - cambios relevantes de estado necesarios para diagnóstico.
+
+Los registros deberán permitir identificar como mínimo:
+
+- fecha y hora;
+- tipo o nivel del evento;
+- componente relacionado;
+- descripción suficiente para diagnóstico.
+
+- CA-RNF-18. Cada modificación realizada sobre una cita deberá registrar como mínimo:
+
+  - fecha;
+  - hora;
+  - usuario responsable;
+  - acción realizada;
+  - valor anterior;
+  - valor actualizado.
+
+Los registros de auditoría no deberán eliminarse automáticamente cuando la cita sea cancelada o finalizada.
 
 ## Compatibilidad
 
-- CA-RNF-19. Las funciones principales deberán ejecutarse correctamente en las dos últimas versiones estables de Google Chrome, Microsoft Edge y Mozilla Firefox.
+- CA-RNF-19. Las funciones principales deberán ejecutarse correctamente en las dos últimas versiones estables disponibles, al momento de realizar las pruebas de aceptación, de:
+
+  - Google Chrome;
+  - Microsoft Edge;
+  - Mozilla Firefox.
+
+Las versiones utilizadas durante la prueba deberán quedar registradas como evidencia.
+
+## Accesibilidad
+
+- CA-RNF-20. Los principales componentes y flujos de la interfaz deberán aplicar como referencia mínima **WCAG 2.1 nivel AA**.
+
+La validación deberá considerar como mínimo:
+
+- navegación mediante teclado;
+- contraste adecuado entre texto y fondo;
+- asociación de etiquetas con campos de formularios;
+- textos alternativos en elementos visuales relevantes;
+- mensajes de error comprensibles;
+- estructura semántica de encabezados;
+- indicador visible de foco;
+- utilización de formularios mediante tecnologías de asistencia.
+
+La evaluación deberá realizarse sobre los principales flujos correspondientes a:
+
+- pacientes;
+- médicos;
+- personal de admisión o recepción;
+- administradores.

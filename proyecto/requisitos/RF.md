@@ -49,11 +49,11 @@ Una cita cancelada o finalizada no podrá volver a un estado anterior.
 
 ## Consulta de citas
 
-- RF-14. El sistema deberá permitir al paciente consultar sus citas futuras programadas o confirmadas.
+- RF-14. El sistema deberá permitir al paciente consultar sus citas vigentes en estado programada, confirmada o en atención.
 
 - RF-15. El sistema deberá permitir al paciente consultar su historial de citas finalizadas, canceladas y no asistidas, pudiendo filtrar los resultados por fecha y estado.
 
-- RF-16. El sistema deberá permitir al médico consultar su agenda de citas programadas y confirmadas, pudiendo filtrar las citas por fecha y estado.
+- RF-16. El sistema deberá permitir al médico consultar su agenda de citas programadas, confirmadas y en atención, pudiendo filtrar las citas por fecha y estado.
 
 - RF-17. El sistema deberá permitir al personal de admisión o recepción consultar la disponibilidad de médicos y horarios de las especialidades habilitadas para la gestión de citas.
 
@@ -66,6 +66,10 @@ Una cita cancelada o finalizada no podrá volver a un estado anterior.
 ## Registro de la atención
 
 - RF-20. El sistema deberá permitir al médico registrar el inicio y la finalización de una atención, almacenando la fecha y hora correspondientes.
+
+Cuando el médico registre el inicio de la atención, la cita deberá cambiar de estado Confirmada a En atención.
+
+Cuando el médico registre la finalización de la atención, la cita deberá cambiar de estado En atención a Finalizada.
 
 ## Usuarios y roles
 
