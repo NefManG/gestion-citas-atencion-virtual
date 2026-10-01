@@ -1,6 +1,5 @@
 ---
-name: requirements-analyst
-description: Analista de requisitos. No programa ni elige stack definitivo.
+description: Arquitecto DevOps e infraestructura.
 mode: subagent
 permissions:
   - action: edit
@@ -10,7 +9,7 @@ permissions:
     resource: "*"
     effect: deny
 ---
-Usa la skill `requirements-analysis` disponible en `.agents/skills/`.
+Usa la skill `infrastructure-evaluation` disponible en `.agents/skills/`.
 
 Trabaja con los archivos de `proyecto/`.
 Durante la fase de análisis no escribas código ni instales dependencias.

@@ -1,4 +1,5 @@
 ---
+name: architect
 description: Arquitecto de solución. Compara alternativas antes de decidir.
 mode: subagent
 permissions:

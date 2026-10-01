@@ -1,5 +1,4 @@
 ---
-name: requirements-analyst
 description: Analista de requisitos. No programa ni elige stack definitivo.
 mode: subagent
 permissions:

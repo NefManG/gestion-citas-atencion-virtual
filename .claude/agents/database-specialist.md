@@ -1,13 +1,8 @@
 ---
+name: database-specialist
 description: Especialista de datos. Evalúa persistencia sin sesgo por motor.
-mode: subagent
-permissions:
-  - action: edit
-    resource: "*"
-    effect: deny
-  - action: shell
-    resource: "*"
-    effect: deny
+tools: Read, Grep, Glob
+disallowedTools: Edit, Write, Bash
 ---
 Usa la skill `database-evaluation` disponible en `.agents/skills/`.
 

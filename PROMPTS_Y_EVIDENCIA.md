@@ -243,103 +243,13 @@ No avances a implementación.
 El prompt inicial completo de la primera generación no quedó recuperado en la evidencia disponible. Sí se conserva el prompt de corrección.
 
 ```text
-Revisa y corrige el análisis de persistencia que acabas de generar.
+Ejecuta explícitamente el subagente database-specialist utilizando el skill database-evaluation.
 
-La versión actual tiene buena cobertura de concurrencia, transacciones,
-auditoría, recuperación y crecimiento, pero requiere las siguientes
-correcciones antes de considerarse final:
+Aplica la ETAPA 04 — PERSISTENCIA de PROMPTS_Y_EVIDENCIA.md.
+Revisa proyecto/resultados/04_database_analysis.md.
 
-1. No selecciones ni recomiendes todavía un motor específico de base de datos.
-
-2. Compara primero estrategias o familias de persistencia:
-
-   A. Persistencia relacional transaccional.
-   B. Persistencia documental / NoSQL.
-   C. Estrategia híbrida.
-   D. Persistencia relacional con evolución posterior mediante réplicas,
-      particionamiento o separación de cargas.
-
-Puedes mencionar PostgreSQL, SQL Server, MySQL/MariaDB u otros únicamente
-como ejemplos de motores capaces de implementar determinadas características,
-pero no como alternativas principales ni como decisión definitiva.
-
-3. La recomendación final debe ser sobre una ESTRATEGIA DE PERSISTENCIA,
-no sobre un producto o motor específico.
-
-4. No marques RNF como “Cumplido” si todavía no existe implementación y prueba.
-
-Utiliza estados como:
-
-- compatible;
-- potencialmente compatible;
-- viable;
-- requiere validación;
-- depende de infraestructura;
-- debe comprobarse mediante pruebas.
-
-5. Corrige las afirmaciones técnicas.
-
-No utilices SELECT ... FOR UPDATE como mecanismo propio de SQL Server.
-
-No afirmes que las temporal tables por sí solas garantizan los seis campos
-de auditoría de D-12.
-
-Diferencia claramente:
-
-- auditoría funcional;
-- observabilidad;
-- respaldo;
-- recuperación;
-- conservación/retención de información.
-
-6. D-20 establece conservación mínima de 5 años para el alcance académico.
-
-Al finalizar ese periodo los registros no deben eliminarse obligatoriamente.
-Podrán mantenerse, archivarse o eliminarse mediante un procedimiento
-autorizado según la política aplicable.
-
-No definas un purge automático obligatorio.
-
-7. Utiliza la versión ACTUAL de:
-
-- proyecto/contexto/reglas_negocio.md
-- proyecto/requisitos/RF.md
-- proyecto/requisitos/RNF.md
-- proyecto/requisitos/criterios_aceptacion.md
-- proyecto/resultados/02_decision_scope.md
-
-Las reglas de negocio actuales llegan hasta RN-35.
-
-8. Verifica nuevamente todas las referencias RF, RNF, RN, CA y D.
-
-9. Corrige errores de redacción y referencias incorrectas.
-
-10. Mantén el análisis de concurrencia, doble reserva, transacciones,
-consistencia, auditoría, volumen, crecimiento, índices, respaldo,
-RPO, RTO, disponibilidad y complejidad operativa.
-
-11. La conclusión debe identificar:
-- estrategia provisionalmente más adecuada;
-- justificación;
-- alternativas menos adecuadas;
-- decisiones técnicas pendientes;
-- que el motor específico todavía NO ha sido seleccionado.
-
-No programes.
-No instales dependencias.
-No modifiques archivos.
-
-Devuelve el documento Markdown completo corregido.
-
-Resultado:
-
-proyecto/resultados/04_database_analysis.md
-```
-
-**Resultado final:** `proyecto/resultados/04_database_analysis.md`
-
-La recomendación quedó en una **estrategia relacional transaccional con capacidad de evolución progresiva**, sin seleccionar motor específico.
-
+No modifiques ningún archivo.
+Antes del análisis, indica el agente y skill utilizados.
 **Revisión humana** sí.
 
 ---
@@ -433,6 +343,7 @@ proyecto/resultados/05_security_analysis.md
 ## Prompt especializado
 
 ```text
+
 Quiero que esta tarea se ejecute mediante un SUBAGENTE especializado.
 
 Usa explícitamente el agente:

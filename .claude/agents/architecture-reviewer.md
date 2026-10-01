@@ -1,4 +1,5 @@
 ---
+name: architecture-reviewer
 description: Revisor adversarial e independiente de arquitectura.
 mode: subagent
 permissions:

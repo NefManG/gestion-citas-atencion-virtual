@@ -1,4 +1,5 @@
 ---
+name: solution-leader
 description: Líder que consolida evidencias y produce la decisión final.
 mode: subagent
 permissions:

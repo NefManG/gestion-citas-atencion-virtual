@@ -1,4 +1,5 @@
 ---
+name: security-reviewer
 description: Revisor de seguridad arquitectónica.
 mode: subagent
 permissions:
