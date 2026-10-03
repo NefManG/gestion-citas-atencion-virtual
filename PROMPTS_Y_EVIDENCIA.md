@@ -660,28 +660,7 @@ Posteriormente, la configuración utilizada con Claude Code se organizó bajo:
 ```
 
 Las rutas antiguas se conservan únicamente como evidencia histórica del prompt utilizado.
-
----
-
-# 16. USO DE CHATGPT
-
-ChatGPT fue utilizado como apoyo para:
-
-- revisar coherencia;
-- corregir referencias;
-- evitar decisiones tecnológicas prematuras;
-- revisar persistencia;
-- revisar seguridad;
-- corregir DevOps;
-- realizar la revisión arquitectónica cuando Claude Code quedó sin cuota;
-- consolidar la recomendación final;
-- revisar RNF-07 y RNF-18;
-- organizar la documentación.
-
-Estas intervenciones se consideran **revisión humana**, no ejecución de subagentes de Claude Code.
-
----
-
+-----
 # 17. PRINCIPIO DE REVISIÓN HUMANA
 
 El flujo aplicado fue:

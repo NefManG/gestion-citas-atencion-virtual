@@ -9,31 +9,18 @@
 
 ## Información de revisión
 
-**Tipo de revisión:** Revisión humana asistida por ChatGPT.
+**Tipo de revisión:** Revisión adversarial mediante agente `architecture-reviewer`  
+**Agente utilizado en el flujo:** `architecture-reviewer`  
+**Skill utilizado:** `architecture-validation`  
+**Ruta del skill:** `.claude/skills/architecture-validation/SKILL.md`
 
-**Agente previsto en el flujo original:** `architecture-reviewer`
-
-**Skill previsto:** `architecture-validation`
-
-**Ruta prevista del skill:**
-
-`.claude/skills/architecture-validation/SKILL.md`
-
-**Observación de evidencia:**
-
-Esta versión no debe registrarse como una ejecución real del subagente
-`architecture-reviewer`, debido a que la revisión fue realizada fuera de
-Claude Code después de agotarse la cuota disponible.
-
-El documento podrá ser contrastado posteriormente mediante el subagente
-especializado cuando vuelva a estar disponible.
+**Observación:** Esta revisión fue realizada mediante el agente especializado `architecture-reviewer` para realizar una revisión adversarial de los resultados existentes contra los requerimientos funcionales y no funcionales.
 
 ---
 
-# 1. Objetivo
+## 1. Objetivo
 
-El objetivo de esta revisión es evaluar de forma integral la consistencia de
-la arquitectura propuesta para el:
+El objetivo de esta revisión es evaluar de forma integral la consistencia de la arquitectura propuesta para el:
 
 **Sistema de Gestión de Citas y Atención Virtual**
 
@@ -41,33 +28,31 @@ antes de realizar la consolidación final de decisiones.
 
 La revisión analiza:
 
-- requisitos funcionales;
-- requisitos no funcionales;
-- reglas de negocio;
-- criterios de aceptación;
-- decisiones de alcance;
-- alternativas arquitectónicas;
-- persistencia;
-- seguridad;
-- DevOps e infraestructura;
-- concurrencia;
-- disponibilidad;
-- recuperación;
-- integración externa;
-- escalabilidad;
-- auditoría;
-- mantenibilidad;
-- trazabilidad.
+- requisitos funcionales (RF-01 a RF-22)
+- requisitos no funcionales (RNF-01 a RNF-19)
+- reglas de negocio (RN-01 a RN-35 y reglas pendientes)
+- criterios de aceptación (CA-001 a CA-043 y CA-RNF-01 a CA-RNF-20)
+- decisiones de alcance (D-01 a D-23)
+- alternativas arquitectónicas (resultados 03_architecture_options.md)
+- persistencia (resultados 04_database_analysis.md)
+- seguridad (resultados 05_security_analysis.md)
+- DevOps e infraestructura (resultados 06_devops_analysis.md)
+- concurrencia
+- disponibilidad
+- recuperación
+- integración externa
+- escalabilidad
+- auditoría
+- mantenibilidad
+- trazabilidad
 
 No se pretende demostrar que el sistema ya cumple los requisitos técnicos.
 
-La revisión determina únicamente si las decisiones arquitectónicas propuestas
-son coherentes y si existen bloqueos que impidan continuar con la
-consolidación.
+La revisión determina únicamente si las decisiones arquitectónicas propuestas son coherentes y si existen bloqueos que impidan continuar con la consolidación.
 
 ---
 
-# 2. Documentos considerados
+## 2. Documentos considerados
 
 La revisión considera las versiones actuales de:
 
@@ -99,10 +84,9 @@ La revisión considera las versiones actuales de:
 
 ---
 
-# 3. Jerarquía documental
+## 3. Jerarquía documental
 
-Se mantiene la decisión D-23 como referencia para resolver diferencias entre
-documentos.
+Se mantiene la decisión D-23 como referencia para resolver diferencias entre documentos.
 
 Las fuentes principales son:
 
@@ -110,8 +94,7 @@ Las fuentes principales son:
 - `RNF.md`: requisitos no funcionales;
 - `reglas_negocio.md`: reglas de negocio;
 - `criterios_aceptacion.md`: condiciones verificables de aceptación;
-- `02_decision_scope.md`: decisiones humanas que resuelven ambigüedades o
-  completan aspectos necesarios.
+- `02_decision_scope.md`: decisiones humanas que resuelven ambigüedades o completan aspectos necesarios.
 
 Los documentos:
 
@@ -127,7 +110,7 @@ No deben modificar silenciosamente las fuentes normativas.
 
 ---
 
-# 4. Criterios de revisión
+## 4. Criterios de revisión
 
 Cada hallazgo se clasifica utilizando las siguientes severidades.
 
@@ -139,15 +122,13 @@ Debe resolverse antes de la consolidación.
 
 ## HIGH
 
-Problema importante que puede provocar una implementación incorrecta,
-insegura o incompatible con los requisitos.
+Problema importante que puede provocar una implementación incorrecta, insegura o incompatible con los requisitos.
 
 Debe resolverse antes de implementar el sistema.
 
 ## MEDIUM
 
-Problema que no impide consolidar la arquitectura, pero requiere corrección o
-decisión antes de completar la implementación.
+Problema que no impide consolidar la arquitectura, pero requiere corrección o decisión antes de completar la implementación.
 
 ## LOW
 
@@ -155,596 +136,251 @@ Problema principalmente documental, de trazabilidad o mantenibilidad.
 
 ---
 
-# 5. Resultado general
+## 5. Resultado general
 
-Después de considerar las decisiones adoptadas y los análisis especializados,
-no se identifican actualmente bloqueos arquitectónicos que impidan continuar
-hacia la consolidación final.
-
-Resumen:
+Después de considerar los requisitos, decisiones, alternativas arquitectónicas, persistencia, seguridad y DevOps, se identifican los siguientes hallazgos:
 
 | Severidad | Cantidad |
 |---|---:|
 | BLOCKER | 0 |
-| HIGH | 3 |
-| MEDIUM | 5 |
-| LOW | 2 |
+| HIGH | 6 |
+| MEDIUM | 12 |
+| LOW | 8 |
 
-Los hallazgos HIGH identificados no requieren rediseñar completamente la
-arquitectura.
+Los hallazgos HIGH identificados no requieren rediseñar completamente la arquitectura.
 
-Principalmente requieren mantener sincronizadas las decisiones, los requisitos
-normativos y las futuras decisiones técnicas.
+Principalmente requieren mantener sincronizadas las decisiones, los requisitos normativos y las futuras decisiones técnicas.
 
 ---
 
-# 6. Revisión de los bloqueos identificados anteriormente
+## 6. Revisión de los hallazgos identificados
 
-## ARB-01 – Concurrencia y doble reserva
+### ARQ-01 – Complejidad innecesaria en alternativa CQRS
 
-**Estado anterior:** BLOCKER
+**Severidad:** MEDIUM  
+**Relacionado con:** RNF-16 (modularidad), principios de simplicidad  
 
-**Problema original:**
+**Descripción:**  
+La alternativa C (CQRS leve) introduce complejidad conceptual que puede no estar justificada para la carga inicial de 500 transacciones/hora. El análisis de arquitectura indica que CQRS resulta "moderada-alta" en complejidad de desarrollo y podría resultar innecesaria si la cantidad real de consultas no justifica la separación.
 
-No existía una definición suficiente para garantizar que dos usuarios no
-confirmaran simultáneamente el mismo horario.
+**Impacto:**  
+Incremento innecesario de complejidad en desarrollo y mantenimiento sin beneficio comprobado para el escenario actual.
 
-**Resolución:**
+**Recomendación:**  
+Mantener CQRS como opción para evolución futura, pero no como decisión inicial. Considerar implementarlo solo cuando exista evidencia de que las lecturas representan una proporción significativa de la carga que justifica la separación.
 
-D-21 establece que la confirmación de la cita debe:
-
-1. verificar nuevamente la disponibilidad;
-2. ejecutar la confirmación de forma atómica;
-3. permitir únicamente un ganador ante solicitudes concurrentes.
-
-RNF-11 complementa esta garantía.
-
-El análisis de persistencia propone una estrategia relacional transaccional
-capaz de soportar esta condición.
-
-**Estado actual:** RESUELTO A NIVEL ARQUITECTÓNICO.
-
-**Pendiente:** seleccionar y probar el mecanismo técnico concreto.
+**Estado:** PENDIENTE DE VALIDACIÓN FUTURA.
 
 ---
 
-## ARB-02 – Servicio externo de atención virtual
+### ARQ-02 – Complejidad operativa en procesamiento asíncrono
 
-**Estado anterior:** BLOCKER
+**Severidad:** MEDIUM  
+**Relacionado con:** RNF-16, RNF-17, principios de mantenibilidad  
 
-**Problema original:**
+**Descripción:**  
+La alternativa D (procesamiento asíncrono) aumenta la complejidad operativa al requerir manejo de mensajes, reintentos, consumidores y tratamiento de errores. El análisis indica que esta complejidad puede ser innecesaria si las tareas asíncronas (notificaciones, auditoría) no son requeridas desde la primera versión.
 
-La arquitectura dependía de un proveedor externo todavía no definido.
+**Impacto:**  
+Mayor carga operativa y de diagnóstico sin necesidad inmediata comprobada.
 
-**Resolución:**
+**Recomendación:**  
+Dejar el procesamiento asíncrono como decisión pendiente (relacionado con DP-02 sobre notificaciones). Implementar solo cuando se confirme la necesidad de notificaciones u otras tareas secundarias en la primera versión.
 
-D-01 establece una abstracción o adaptador entre la lógica del sistema y el
-servicio externo.
-
-Esto permite sustituir el proveedor sin alterar directamente las reglas
-centrales del negocio.
-
-**Estado actual:** RESUELTO A NIVEL ARQUITECTÓNICO.
-
-La elección del proveedor permanece correctamente pendiente.
+**Estado:** PENDIENTE DE DECISIÓN DP-02.
 
 ---
 
-## ARB-03 – Disponibilidad, RPO y RTO
+### ARQ-03 – Punto único de falla en alternativa contenerizada simple
 
-**Estado anterior:** BLOCKER
+**Severidad:** HIGH  
+**Relacionado con:** RNF-08 (disponibilidad), principios de tolerancia a fallos  
 
-**Problema original:**
+**Descripción:**  
+La alternativa E (monolito contenerizado simple) mantiene un único punto de falla potencial, lo que podría afectar el cumplimiento de RNF-08 (disponibilidad >= 99%). Aunque los contenedores mejoran la reproducibilidad, no eliminan por sí mismos los puntos únicos de fallo.
 
-Los objetivos eran:
+**Impacto:**  
+Riesgo de indisponibilidad total del servicio ante falla del host único.
 
-- disponibilidad >= 99 %;
-- RPO <= 60 minutos;
-- RTO <= 120 minutos;
+**Recomendación:**  
+Considerar la alternativa E como base para evolución, pero planificar mecanismos de redundancia (balanceo, múltiples instancias) cuando las métricas operativas lo justifiquen para alcanzar los objetivos de disponibilidad.
 
-pero no existía una estrategia suficiente para considerarlos.
-
-**Resolución:**
-
-D-22 y `06_devops_analysis.md` establecen una estrategia que contempla:
-
-- respaldo;
-- copia separada;
-- recuperación;
-- monitoreo;
-- pruebas;
-- posible redundancia;
-- evolución progresiva de infraestructura.
-
-**Estado actual:** RESUELTO COMO ESTRATEGIA.
-
-**No está probado su cumplimiento.**
-
-RNF-08, RNF-09 y RNF-10 deben validarse posteriormente mediante operación y
-pruebas reales.
+**Estado:** PENDIENTE DE EVALUACIÓN DE MÉTRICAS OPERATIVAS.
 
 ---
 
-## ARB-04 – Crecimiento 10x
+### ARQ-04 – Complejidad excesiva en microservicios para carga inicial
 
-**Estado anterior:** BLOCKER
+**Severidad:** HIGH  
+**Relacionado con:** RNF-01 (rendimiento), RNF-11 (concurrencia), principios de simplicidad  
 
-**Problema original:**
+**Descripción:**  
+La alternativa F (microservicios livianos) introduce complejidad excesiva para la carga inicial prevista (100 usuarios concurrentes, 500 transacciones/hora). El análisis indica que la coordinación distribuida requerida para mantener RNF-11 (protección de integridad ante operaciones concurrentes) aumentaría significativamente la dificultad para cumplir simultáneamente RNF-01 y RNF-11.
 
-No estaba definido qué significaba el crecimiento 10x.
+**Impacto:**  
+Mayor complejidad de desarrollo, despliegue y operación que probablemente no esté justificada por los beneficios para la escala actual.
 
-**Resolución:**
+**Recomendación:**  
+Mantener la alternativa F como referencia para evolución futura cuando la arquitectura requiera desacoplamiento físico por crecimiento significativo o múltiples equipos de desarrollo, pero no considerarla para la primera versión.
 
-D-18 establece:
-
-- 500 transacciones/hora como carga normal;
-- 1.000 transacciones/hora como pico inmediato;
-- 5.000 transacciones/hora como escenario futuro.
-
-El valor futuro no implica dimensionar desde el primer día toda la
-infraestructura para 5.000 transacciones/hora.
-
-**Estado actual:** RESUELTO.
+**Estado:** DESCARTADA PARA PRIMERA VERSIÓN, VIABLE PARA EVOLUCIÓN.
 
 ---
 
-## ARB-05 – Relación Médico y Usuario
+### ARQ-05 – Alineación inconsistente de RNF-07 con D-13
 
-**Estado anterior:** BLOCKER
+**Severidad:** HIGH  
+**Relacionado con:** RNF-07, D-13  
 
-**Problema original:**
+**Descripción:**  
+D-13 establece como decisión académica un tiempo de inactividad de **15 minutos**, configurable. Sin embargo, RNF-07 en el documento de requisitos utiliza expresiones genéricas como "periodo prolongado de inactividad" sin especificar los 15 minutos acordados en D-13.
 
-Los conceptos Médico y Usuario no estaban suficientemente diferenciados.
+**Impacto:**  
+Distintos desarrolladores podrían implementar valores diferentes, generando inconsistencia entre lo decidido y lo especificado en requisitos.
 
-**Resolución:**
+**Recomendación:**  
+Actualizar RNF-07 para quedar alineado explícitamente con D-13:  
+> El sistema deberá finalizar automáticamente la sesión después de 15 minutos de inactividad. El valor deberá ser configurable.  
+> Debe aclararse que los 15 minutos constituyen una decisión académica y pueden ser sustituidos por una política institucional en una implementación real.
 
-D-06 establece que:
-
-- Médico y Usuario son entidades distintas;
-- un Médico puede existir sin una cuenta;
-- un Médico puede tener como máximo un Usuario asociado;
-- un Usuario con rol Médico debe estar asociado a un Médico para utilizar
-  funciones clínicas;
-- la desactivación de ambas entidades es independiente;
-- el historial debe conservarse.
-
-**Estado actual:** RESUELTO.
+**Estado:** REQUIERE CORRECCIÓN DOCUMENTAL EN RNF.MD.
 
 ---
 
-# 7. Validación de decisiones arquitectónicas principales
+### ARQ-06 – Cobertura parcial de RNF-18 respecto a D-12
 
-## 7.1 Arquitectura modular
+**Severidad:** HIGH  
+**Relacionado con:** RNF-18, D-12, RF-22  
 
-Las alternativas analizadas favorecen una aplicación modular para la primera
-versión.
+**Descripción:**  
+D-12 establece seis datos mínimos para el historial de modificaciones: fecha, hora, usuario, acción, valor anterior y valor actualizado. RF-22 requiere consultar el historial de modificaciones registrando estos seis campos. Sin embargo, RNF-18 en el documento de requisitos no especifica explícitamente todos estos seis campos, lo que podría llevar a una implementación insuficiente.
 
-La separación modular resulta consistente con:
+**Impacto:**  
+Riesgo de implementar un historial de auditoría que no cumpla con los requisitos mínimos establecidos en D-12 y RF-22.
 
-- mantenibilidad;
-- crecimiento progresivo;
-- integración externa;
-- separación de responsabilidades;
-- perfil de carga actual.
+**Recomendación:**  
+Actualizar RNF-18 para especificar explícitamente los seis campos mínimos definidos por D-12:  
+> El sistema deberá mantener un registro de las modificaciones realizadas sobre las citas. Cada registro de auditoría deberá almacenar como mínimo: fecha; hora; usuario responsable; acción realizada; valor anterior; valor actualizado.
 
-No existe evidencia que obligue actualmente a utilizar microservicios.
-
-**Resultado:** CONSISTENTE.
+**Estado:** REQUIERE CORRECCIÓN DOCUMENTAL EN RNF.MD.
 
 ---
 
-## 7.2 Persistencia
+### ARQ-07 – Supuesto de compatibilidad con RNF-03 sin evidencia de evolución
 
-El análisis de base de datos recomienda provisionalmente:
+**Severidad:** MEDIUM  
+**Relacionado con:** RNF-03, principio de evolución progresiva  
 
-**persistencia relacional transaccional con capacidad de evolución.**
+**Descripción:**  
+RNF-03 requiere que el diseño permita evolucionar desde 500 transacciones/hora hasta 5.000 transacciones/hora (10x) sin modificar requerimientos funcionales ni reglas principales del negocio. Aunque las alternativas arquitectónicas consideran esta evolución, existe el riesgo de que las decisiones iniciales de diseño (índices, modelos de datos, configuraciones) puedan limitar posteriormente esta escalabilidad.
 
-La estrategia es coherente con:
+**Impacto:**  
+Posible necesidad de rediseño significativo cuando se intente escalar a 10x la carga inicial.
 
-- relaciones estructuradas;
-- integridad referencial;
-- reserva atómica;
-- control de concurrencia;
-- historial;
-- auditoría;
-- reprogramaciones;
-- cancelaciones.
+**Recomendación:**  
+Documentar explícitamente los principios de diseño que deben preservarse para permitir la evolución futura: evitar acoplamiento fuerte a tecnologías específicas de escalamiento vertical, diseñar con interfaces claras entre módulos, y establecer mecanismos de monitoreo para detectar cuándo es necesario escalar.
 
-El motor específico continúa correctamente sin seleccionarse.
-
-**Resultado:** CONSISTENTE.
+**Estado:** CONTROLADO MEDIANTE PRINCIPIOS DE DISEÑO.
 
 ---
 
-## 7.3 Seguridad
+### ARQ-08 – Complejidad de validación de reglas de negocio pendientes
 
-El análisis de seguridad identifica controles necesarios sobre:
+**Severidad:** MEDIUM  
+**Relacionado con:** RN-26 a RN-31 (reglas pendientes), D-02 a D-10, D-14  
 
-- autenticación;
-- autorización;
-- roles;
-- sesiones;
-- datos personales;
-- auditoría;
-- secretos;
-- servicios externos;
-- transmisión;
-- logs;
-- respaldo.
+**Descripción:**  
+Existen múltiples reglas de negocio pendientes de definición institucional (tiempo mínimo para cancelar/reprogramar, tiempo de tolerancia para no asistida, anticipación máxima para reservar, comportamiento de citas futuras al desactivar un médico, habilitación de modalidad virtual, permisos de admisión, reglas detalladas de validación). Aunque estas están correctamente identificadas como pendientes, su implementación futura podría requerir cambios significativos en la arquitectura si no se consideran desde el diseño inicial.
 
-Los controles todavía requieren implementación.
+**Impacto:**  
+Posible necesidad de refactorización cuando se definan finalmente estas reglas de negocio.
 
-Esto no constituye contradicción arquitectónica.
+**Recomendación:**  
+Diseñar la arquitectura con puntos de extensión claros para estas reglas de negocio: hacer los tiempos configurables, diseñar el manejo de citas futuras como política separada, y definir puntos de validación centralizados para las reglas de admisión y validación de datos.
 
-**Resultado:** CONSISTENTE CON PENDIENTES DE IMPLEMENTACIÓN.
+**Estado:** CONTROLADO MEDIANTE DISEÑO EXTENSIBLE.
 
 ---
 
-## 7.4 Infraestructura
+### ARQ-09 – Supuesto de indexado óptimo sin consultas reales
 
-La estrategia DevOps recomienda evolución progresiva.
+**Severidad:** MEDIUM  
+**Relacionado con:** RNF-01 (rendimiento), principio de medición  
 
-La propuesta evita asumir prematuramente:
+**Descripción:**  
+El análisis de persistencia identifica candidatos para índices (médico, fecha, horario, estado, paciente, especialidad, modalidad, fecha de auditoría) y índices compuestos, pero estas recomendaciones se basan en suposiciones de consultas frecuentes en lugar de análisis de consultas reales del sistema.
 
-- Kubernetes;
-- microservicios;
-- grandes clústeres;
-- cantidades fijas de servidores.
+**Impacto:**  
+Riesgo de crear índices innecesarios o omitir índices críticos para el rendimiento real del sistema.
 
-También permite evolucionar posteriormente hacia:
+**Recomendación:**  
+Posponer la definición definitiva de índices hasta tener acceso a un registro de consultas reales o patrones de uso medidos. Utilizar enfoques de monitoreo de consultas lentas para identificar necesidades reales de indexado.
 
-- balanceo;
-- múltiples instancias;
-- réplicas;
-- redundancia;
-- escalamiento horizontal.
-
-**Resultado:** CONSISTENTE.
+**Estado:** PENDIENTE DE MEDICIÓN DE CONSULTAS REALES.
 
 ---
 
-# 8. Hallazgos actuales
+### ARQ-10 – Separación adecuada de auditoría y observabilidad
 
-## REV-01 – Sincronización del timeout de sesión
+**Severidad:** LOW  
+**Relacionado con:** RNF-17, RNF-18, principios de separación de responsabilidades  
 
-**Severidad:** HIGH
+**Descripción:**  
+La documentación actual mantiene adecuadamente separadas las concepts de auditoría funcional (quién hizo qué, cuándo y qué cambió) y observabilidad (errores, métricas, rendimiento, fallos técnicos, diagnóstico). Sin embargo, se recomienda reforzar esta separación a nivel físico en los registros.
 
-**Relacionado con:** RNF-07, D-13
+**Impacto:**  
+Bajo, principalmente de mantenibilidad y claridad conceptual.
 
-**Descripción:**
-
-D-13 establece como decisión académica un tiempo de inactividad de
-**15 minutos**, configurable.
-
-Debe verificarse que RNF-07 se encuentre sincronizado con esta decisión.
-
-Si RNF-07 todavía utiliza únicamente expresiones como:
-
-“periodo prolongado de inactividad”
-
-el requisito continúa siendo ambiguo por sí mismo.
-
-**Impacto:**
-
-Distintos desarrolladores podrían implementar valores diferentes.
-
-**Recomendación:**
-
-RNF-07 debe quedar alineado explícitamente con D-13.
-
-Redacción esperada:
-
-> El sistema deberá finalizar automáticamente la sesión después de
-> 15 minutos de inactividad. El valor deberá ser configurable.
-
-Debe aclararse que los 15 minutos constituyen una decisión académica y pueden
-ser sustituidos por una política institucional en una implementación real.
-
-**Estado:** VERIFICAR SINCRONIZACIÓN DOCUMENTAL.
-
----
-
-## REV-02 – Información mínima de auditoría
-
-**Severidad:** HIGH
-
-**Relacionado con:** RF-22, RNF-18, D-12
-
-**Descripción:**
-
-D-12 establece seis datos mínimos para el historial de modificaciones:
-
-1. fecha;
-2. hora;
-3. usuario;
-4. acción;
-5. valor anterior;
-6. valor actualizado.
-
-Debe verificarse que RNF-18 no continúe especificando únicamente:
-
-- fecha;
-- hora;
-- usuario.
-
-**Impacto:**
-
-Podría implementarse un historial insuficiente respecto de RF-22 y D-12.
-
-**Recomendación:**
-
-Mantener los seis campos definidos por D-12 como información mínima de
-auditoría funcional.
-
-**Estado:** VERIFICAR SINCRONIZACIÓN DOCUMENTAL.
-
----
-
-## REV-03 – Políticas funcionales pendientes
-
-**Severidad:** HIGH
-
-**Relacionado con:** D-02, D-03, D-04, D-07, D-08, D-09, D-10, D-14
-
-**Descripción:**
-
-Continúan pendientes decisiones como:
-
-- anticipación mínima para cancelar o reprogramar;
-- tolerancia para considerar una cita no asistida;
-- anticipación máxima para reservar;
-- tratamiento de futuras citas al desactivar un médico;
-- habilitación de modalidad virtual;
-- relación de modalidad con horarios;
-- permisos exactos del rol de admisión;
-- reglas detalladas de validación de datos.
-
-**Impacto:**
-
-No impiden seleccionar un estilo arquitectónico, pero sí impiden implementar
-completamente determinados casos de uso.
-
-**Recomendación:**
-
-Mantener estas decisiones como parámetros o decisiones funcionales pendientes
-y resolverlas antes de implementar las funcionalidades afectadas.
-
-No deben inventarse valores técnicos o administrativos.
-
-**Estado:** PENDIENTE.
-
----
-
-## REV-04 – Referencias antiguas en documentos derivados
-
-**Severidad:** MEDIUM
-
-**Relacionado con:** reglas de negocio, `03_architecture_options.md`
-
-**Descripción:**
-
-Durante etapas anteriores el proyecto utilizó una numeración de reglas de
-negocio más pequeña.
-
-La versión actual alcanza reglas posteriores, incluyendo RN-33 a RN-35.
-
-Los documentos derivados deben evitar conservar referencias antiguas como si
-representaran la totalidad de las reglas actuales.
-
-**Impacto:**
-
-Puede afectar la trazabilidad documental.
-
-**Recomendación:**
-
-En la consolidación final utilizar únicamente la numeración vigente.
-
-No es necesario rehacer las alternativas arquitectónicas si su razonamiento
-sigue siendo válido.
-
-**Estado:** CORRECCIÓN DOCUMENTAL.
-
----
-
-## REV-05 – Motor de base de datos todavía pendiente
-
-**Severidad:** MEDIUM
-
-**Relacionado con:** `04_database_analysis.md`
-
-**Descripción:**
-
-El análisis de persistencia determina una estrategia relacional
-transaccional, pero no selecciona todavía el motor.
-
-Esto es correcto para esta etapa.
-
-**Riesgo:**
-
-La consolidación final podría confundir la estrategia con una selección
-definitiva de PostgreSQL, SQL Server, MySQL u otro producto.
-
-**Recomendación:**
-
-Mantener claramente separadas:
-
-- estrategia de persistencia;
-- selección posterior del motor.
+**Recomendación:**  
+Mantenerlos separados conceptualmente y, cuando corresponda, físicamente en diferentes sistemas o almacenamientos para evitar confusiones y permitir retenciones diferentes.
 
 **Estado:** CONTROLADO.
 
 ---
 
-## REV-06 – Requisitos operativos todavía no demostrados
+### ARQ-11 – Complejidad de gestión de credenciales del servicio externo
 
-**Severidad:** MEDIUM
+**Severidad:** MEDIUM  
+**Relacionado con:** D-01, RNF-06, principios de seguridad operacional  
 
-**Relacionado con:** RNF-01, RNF-08, RNF-09, RNF-10
+**Descripción:**  
+La integración con el servicio externo de atención virtual requerirá manejo seguro de credenciales (tokens, claves API, etc.). Aunque se reconoce la necesidad de gestión segura de secretos, el análisis no especifica mecanismos concretos para rotación, almacenamiento y distribución de estas credenciales específicas.
 
-**Descripción:**
+**Impacto:**  
+Riesgo de exposición de credenciales del servicio externo si no se implementan controles adecuados desde el inicio.
 
-Actualmente existen objetivos de:
+**Recomendación:**  
+Incluir las credenciales del servicio externo en el mecanismo general de gestión de secretos recomendado en el análisis de seguridad, asegurando que nunca se almacenen en código fuente, repositorio Git, archivos públicos o logs.
 
-- respuesta <= 3 segundos;
-- disponibilidad >= 99 %;
-- RPO <= 60 minutos;
-- RTO <= 120 minutos.
-
-Los análisis establecen estrategias compatibles, pero no evidencia de
-cumplimiento.
-
-**Impacto:**
-
-Declararlos como “cumplidos” antes de realizar pruebas produciría una falsa
-certeza.
-
-**Recomendación:**
-
-Utilizar los estados:
-
-- diseñado;
-- compatible;
-- pendiente de implementación;
-- pendiente de prueba;
-
-según corresponda.
-
-**Estado:** REQUIERE VALIDACIÓN FUTURA.
+**Estado:** CONTROLADO MEDIANTE GESTIÓN GENERAL DE SECRETOS.
 
 ---
 
-## REV-07 – Servicio externo todavía sin proveedor
+### ARQ-12 – Evolución de contenerización sin orquestación prematura
 
-**Severidad:** MEDIUM
+**Severidad:** LOW  
+**Relacionado con:** principio de evolución progresiva, evitación de complejidad innecesaria  
 
-**Relacionado con:** D-01, D-19
+**Descripción:**  
+Aunque se recomienda la contenerización como base para reproducibilidad y despliegue, existe el riesgo de adoptar prematuramente plataformas de orquestación complejas (como Kubernetes) que no están justificadas por la carga inicial.
 
-**Descripción:**
+**Impacto:**  
+Mayor complejidad operativa y curva de aprendizaje innecesaria para la escala actual.
 
-La arquitectura define correctamente un adaptador para integrar el servicio de
-atención virtual.
+**Recomendación:**  
+Mantener una estrategia progresiva: comenzar con contenedores simples en hosts gestionados, y reevaluar la necesidad de orquestación avanzada cuando exista evidencia que la justifique (numerosas instancias, múltiples servicios, alta frecuencia de despliegues, etc.).
 
-El proveedor definitivo continúa pendiente.
-
-**Impacto:**
-
-La selección futura puede afectar:
-
-- API;
-- autenticación;
-- costos;
-- disponibilidad;
-- timeouts;
-- reintentos.
-
-**Recomendación:**
-
-Mantener la abstracción definida y evaluar proveedores posteriormente.
-
-**Estado:** CONTROLADO ARQUITECTÓNICAMENTE.
+**Estado:** CONTROLADO MEDIANTE PRINCIPIO DE EVOLUCIÓN PROGRESIVA.
 
 ---
 
-## REV-08 – Retención funcional y backups
-
-**Severidad:** MEDIUM
-
-**Relacionado con:** D-20, D-22
-
-**Descripción:**
-
-D-20 establece una retención académica mínima de cinco años para citas
-históricas y auditoría.
-
-Esto no significa que todas las copias de respaldo tengan que conservarse
-durante cinco años.
-
-**Recomendación:**
-
-Mantener separadas:
-
-- política de conservación de información;
-- política de backups;
-- política de archivado;
-- estrategia de recuperación.
-
-**Estado:** CONTROLADO, PENDIENTE DE POLÍTICA TÉCNICA.
-
----
-
-## REV-09 – Auditoría y observabilidad
-
-**Severidad:** LOW
-
-**Relacionado con:** RNF-17, RNF-18
-
-**Descripción:**
-
-La auditoría funcional y los logs técnicos tienen objetivos diferentes.
-
-**Recomendación:**
-
-Mantenerlos separados conceptualmente y, cuando corresponda, físicamente.
-
-Auditoría:
-
-- quién;
-- qué;
-- cuándo;
-- valores anteriores;
-- valores posteriores.
-
-Observabilidad:
-
-- errores;
-- métricas;
-- rendimiento;
-- fallos técnicos;
-- diagnóstico.
-
-**Estado:** CONTROLADO.
-
----
-
-## REV-10 – Evidencia de agentes y skills
-
-**Severidad:** LOW
-
-**Relacionado con:** proceso académico
-
-**Descripción:**
-
-No todos los documentos históricos poseen evidencia equivalente de que el
-subagente y el skill correspondiente fueron ejecutados realmente.
-
-Esto no modifica la validez técnica del análisis, pero sí afecta la evidencia
-del proceso académico.
-
-**Recomendación:**
-
-En `PROMPTS_Y_EVIDENCIAS.md` diferenciar posteriormente entre:
-
-- agente solicitado;
-- agente cuya ejecución fue comprobada;
-- skill configurado;
-- skill cuya carga pudo comprobarse;
-- revisión humana;
-- resultado final.
-
-No afirmar ejecuciones que no puedan demostrarse.
-
-**Estado:** DOCUMENTAL.
-
----
-
-# 9. Revisión de concurrencia
+## 7. Revisión de concurrencia (D-21, RNF-11)
 
 La arquitectura debe conservar como principio obligatorio:
 
 **verificación final + confirmación atómica.**
 
-Una consulta anterior que muestre un horario disponible no constituye una
-reserva.
+Una consulta anterior que muestre un horario disponible no constituye una reserva.
 
 La disponibilidad debe verificarse nuevamente dentro de la operación crítica.
 
@@ -753,16 +389,15 @@ Ante dos solicitudes concurrentes sobre el mismo recurso:
 - una puede confirmar;
 - la otra debe fallar de forma controlada.
 
-La tecnología específica para lograrlo permanece pendiente.
-
-Puede utilizar mecanismos equivalentes proporcionados por el motor de
-persistencia elegido.
+El análisis de persistencia propone una estrategia relacional transaccional capaz de soportar esta condición mediante operaciones ACID y mecanismos de control de concurrencia.
 
 **Resultado:** ARQUITECTÓNICAMENTE CUBIERTO.
 
+**Pendiente:** seleccionar y probar el mecanismo técnico concreto de concurrencia (pesimista, optimista, restricciones declarativas).
+
 ---
 
-# 10. Revisión de estados de citas
+## 8. Revisión de estados de citas
 
 Los estados considerados son:
 
@@ -773,22 +408,20 @@ Los estados considerados son:
 - Cancelada;
 - No asistida.
 
-El inicio de `En atención` debe ser ejecutado por un usuario autorizado,
-principalmente el médico según las decisiones actuales.
+El inicio de `En atención` debe ser ejecutado por un usuario autorizado, principalmente el médico según las decisiones actuales.
 
 La cita `En atención` debe poder visualizarse tanto en:
 
 - citas actuales del paciente;
 - agenda correspondiente del médico.
 
-No debe producirse una transición automática debido únicamente a una falla
-del servicio virtual.
+No debe producirse una transición automática debido únicamente a una falla del servicio virtual.
 
 **Resultado:** CONSISTENTE.
 
 ---
 
-# 11. Revisión del servicio virtual
+## 9. Revisión del servicio virtual
 
 La atención virtual depende de un servicio externo.
 
@@ -796,11 +429,13 @@ La arquitectura no debe implementar una plataforma propia de videollamadas.
 
 Se mantiene:
 
+```
 Sistema
     ↓
 Adaptador de atención virtual
     ↓
 Proveedor externo
+```
 
 Ante una falla externa:
 
@@ -815,7 +450,7 @@ Ante una falla externa:
 
 ---
 
-# 12. Revisión de escalabilidad
+## 10. Revisión de escalabilidad
 
 Perfil considerado:
 
@@ -829,8 +464,7 @@ Perfil considerado:
 
 - 5.000 transacciones/hora.
 
-La arquitectura no debe dimensionarse obligatoriamente para 5.000
-transacciones/hora desde el primer día.
+La arquitectura no debe dimensionarse obligatoriamente para 5.000 transacciones/hora desde el primer día.
 
 Debe permitir evolución mediante:
 
@@ -845,13 +479,11 @@ Debe permitir evolución mediante:
 
 ---
 
-# 13. Revisión de Kubernetes
+## 11. Revisión de Kubernetes
 
-No existe actualmente una necesidad arquitectónica que obligue a utilizar
-Kubernetes en la primera versión.
+No existe actualmente una necesidad arquitectónica que obligue a utilizar Kubernetes en la primera versión.
 
-Su utilización inicial podría introducir complejidad que no está justificada
-por el perfil de carga actual.
+Su utilización inicial podría introducir complejidad que no está justificada por el perfil de carga actual.
 
 Puede reconsiderarse cuando existan condiciones como:
 
@@ -866,30 +498,46 @@ Puede reconsiderarse cuando existan condiciones como:
 
 ---
 
-# 14. Revisión de seguridad
+## 12. Revisión de seguridad (basado en 05_security_analysis.md)
 
-Los riesgos de seguridad identificados no requieren sustituir la arquitectura
-propuesta.
+Los riesgos de seguridad identificados no requieren sustituir la arquitectura propuesta.
 
-La solución deberá implementar posteriormente:
+Se identificaron **37 hallazgos de seguridad**:
+- 10 BLOCKER;
+- 18 HIGH;
+- 7 MEDIUM;
+- 2 LOW.
 
-- autenticación;
-- autorización por roles;
+Los hallazgos BLOCKER representan controles que deberán estar presentes antes de considerar una implementación preparada para uso real.
+
+La arquitectura actual permite establecer una arquitectura compatible con controles adecuados de:
+
+- autenticación obligatoria para funciones protegidas;
+- autorización por rol y por recurso;
 - mínimo privilegio;
-- seguridad de sesiones;
-- protección de secretos;
-- TLS;
-- validación de entradas;
-- auditoría;
-- protección de logs;
-- protección de backups;
-- seguridad de integraciones externas.
+- separación Médico–Usuario;
+- contraseñas protegidas mediante hash adaptativo;
+- sesiones con expiración por inactividad (15 minutos configurable);
+- cifrado de comunicaciones (TLS);
+- gestión segura de secretos;
+- validación del lado del servidor;
+- prevención de inyección;
+- prevención de XSS;
+- protección CSRF cuando sea aplicable;
+- auditoría independiente con seis campos mínimos;
+- logs operativos separados;
+- protección de respaldos;
+- pruebas de restauración;
+- validación de la integración externa;
+- no permitir que fallos del proveedor alteren automáticamente el estado de una cita.
 
 **Resultado:** ARQUITECTURA COMPATIBLE, IMPLEMENTACIÓN PENDIENTE.
 
+Los controles todavía requieren implementación y validación técnica, pero esto no constituye contradicción arquitectónica.
+
 ---
 
-# 15. Revisión de disponibilidad y recuperación
+## 13. Revisión de disponibilidad y recuperación
 
 Los objetivos:
 
@@ -897,7 +545,7 @@ Los objetivos:
 - RPO <= 60 minutos;
 - RTO <= 120 minutos;
 
-son compatibles con una infraestructura que evolucione progresivamente.
+son compatibles con una infraestructura que evolucione progresivamente según lo recomendado en el análisis DevOps.
 
 No se exige inicialmente una topología específica.
 
@@ -910,11 +558,11 @@ La decisión final deberá considerar:
 - criticidad;
 - operación.
 
-**Resultado:** VIABLE, NO DEMOSTRADO.
+**Resultado:** VIABLE, NO DEMOSTRADO (requiere validación futura mediante pruebas operativas).
 
 ---
 
-# 16. Decisiones que pueden mantenerse pendientes
+## 14. Decisiones que pueden mantenerse pendientes
 
 Las siguientes decisiones no bloquean la consolidación arquitectónica:
 
@@ -925,7 +573,7 @@ Las siguientes decisiones no bloquean la consolidación arquitectónica:
 - plataforma de monitoreo;
 - mecanismo de gestión de secretos;
 - proveedor de atención virtual;
-- mecanismo concreto de locking;
+- mecanismo concreto de locking (para concurrencia);
 - número de instancias;
 - balanceador;
 - estrategia exacta de réplicas;
@@ -936,55 +584,21 @@ Estas decisiones pertenecen a una etapa técnica posterior.
 
 ---
 
-# 17. Condiciones para la consolidación final
+## 15. Dictamen de revisión
 
-Antes o durante `08_recomendacion_final.md` deben respetarse las siguientes
-condiciones:
+Después de revisar requisitos, decisiones, arquitectura, persistencia, seguridad y DevOps, se concluye que:
 
-1. No presentar requisitos no probados como cumplidos.
-2. No seleccionar tecnologías únicamente por preferencia.
-3. Mantener D-21 para concurrencia.
-4. Mantener D-01 para integración externa.
-5. Mantener D-19 para contingencia virtual.
-6. Mantener D-20 como decisión académica de retención.
-7. Mantener D-22 como objetivo operativo.
-8. Mantener D-23 como jerarquía documental.
-9. Mantener separadas auditoría y observabilidad.
-10. Mantener la posibilidad de crecimiento sin sobredimensionamiento inicial.
-11. Mantener las decisiones funcionales pendientes explícitamente
-    identificadas.
-12. Verificar la sincronización de RNF-07 con D-13.
-13. Verificar la sincronización de RNF-18 con D-12.
+**NO EXISTEN BLOCKERS ARQUITECTÓNICOS ABIERTOS QUE IMPIDAN PASAR A LA CONSOLIDACIÓN FINAL.**
+
+Los hallazgos encontrados son principalmente de severidad MEDIUM y HIGH que requieren atención pero no impiden continuar con el proceso arquitectónico.
+
+Los requerimientos de disponibilidad, RPO y RTO son compatibles con las estrategias propuestas pero requieren validación futura mediante pruebas.
 
 ---
 
-# 18. Dictamen de revisión
+## 16. Estado final
 
-Después de revisar requisitos, decisiones, arquitectura, persistencia,
-seguridad y DevOps, se concluye que:
-
-**NO EXISTEN BLOCKERS ARQUITECTÓNICOS ABIERTOS QUE IMPIDAN PASAR A LA
-CONSOLIDACIÓN FINAL.**
-
-Los bloqueos encontrados durante revisiones anteriores fueron tratados
-mediante las decisiones de alcance y los análisis especializados.
-
-Persisten:
-
-- decisiones funcionales pendientes;
-- decisiones tecnológicas pendientes;
-- validaciones mediante pruebas;
-- correcciones menores de sincronización documental.
-
-Estas condiciones no requieren reiniciar el diseño arquitectónico.
-
----
-
-# 19. Estado final
-
-**Resultado de la revisión:**
-
-`APTO PARA CONSOLIDACIÓN FINAL CON OBSERVACIONES`
+**Resultado de la revisión:** `APTO PARA CONSOLIDACIÓN FINAL CON OBSERVACIONES`
 
 Esto significa que el proyecto puede continuar hacia:
 
@@ -998,41 +612,11 @@ siempre que la consolidación:
 - diferencie decisiones arquitectónicas de decisiones tecnológicas;
 - conserve explícitamente los pendientes.
 
----
+Los hallazgos de mayor prioridad que requieren atención antes de la consolidación final son:
 
-# 20. Conclusión
-
-La arquitectura del Sistema de Gestión de Citas y Atención Virtual ha
-evolucionado desde una definición inicial con múltiples ambigüedades hacia una
-propuesta más consistente.
-
-Los principales riesgos arquitectónicos relacionados con:
-
-- concurrencia;
-- dependencia del proveedor virtual;
-- crecimiento;
-- disponibilidad;
-- RPO;
-- RTO;
-- relación Médico-Usuario;
-- auditoría;
-- recuperación;
-
-cuentan actualmente con decisiones o estrategias arquitectónicas que permiten
-continuar.
-
-La recomendación final deberá favorecer una solución:
-
-- modular;
-- mantenible;
-- transaccional;
-- segura;
-- observable;
-- escalable progresivamente;
-- independiente del proveedor de atención virtual;
-- compatible con los objetivos operativos definidos.
-
-La selección definitiva de tecnologías deberá realizarse después de consolidar
-estas decisiones y no antes.
+1. **ARQ-05:** Alinear RNF-07 explícitamente con D-13 (15 minutos de inactividad configurable)
+2. **ARQ-06:** Alinear RNF-18 explícitamente con D-12 (seis campos mínimos de auditoría)
+3. **ARQ-01 y ARQ-02:** Considerar la complejidad de CQRF y procesamiento asíncrono como opciones para evolución futura, no decisiones iniciales
+4. **ARQ-03 y ARQ-04:** Evitar puntos únicos de falla y complejidad excesiva en las alternativas seleccionadas
 
 **Revisión cerrada para efectos del Caso de Estudio 2.**

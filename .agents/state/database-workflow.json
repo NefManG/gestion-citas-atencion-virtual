@@ -1,9 +1,37 @@
 {
   "workflow": "02_database_workflow",
-  "current_step": 1,
-  "completed": [],
+  "current_step": 14,
+  "completed": [
+    "Paso 01 — Lectura y trazabilidad",
+    "Paso 02 — Modelo conceptual",
+    "Paso 03 — Diagrama E-R",
+    "Paso 04 — Modelo lógico",
+    "Paso 05 — Normalización",
+    "Paso 06 — Selección del DBMS",
+    "Paso 07 — Diseño físico",
+    "Paso 08 — Integridad",
+    "Paso 09 — Seguridad",
+    "Paso 10 — Auditoría, histórico y versionamiento",
+    "Paso 11 — Índices y rendimiento",
+    "Paso 12 — Transacciones y concurrencia",
+    "Paso 13 — Migraciones"
+  ],
   "blocked": false,
-  "next": "Paso 01 — Lectura y trazabilidad",
-  "last_output": null,
-  "outputs": {}
+  "next": "Paso 14 — Revisión DBA (requires STATUS: APPROVED)",
+  "last_output": "Informe de migraciones generado en proyecto/base_datos/12_migraciones/migraciones.md",
+  "outputs": {
+    "01_requisitos_datos": "proyecto/base_datos/01_requisitos_datos/requisitos_datos.md",
+    "02_modelo_conceptual": "proyecto/base_datos/02_modelo_conceptual/modelo_conceptual.md",
+    "03_diagrama_er": "proyecto/base_datos/02_modelo_conceptual/diagrama_er.md",
+    "04_modelo_logico": "proyecto/base_datos/03_modelo_logico/modelo_logico.md",
+    "05_normalizacion": "proyecto/base_datos/04_normalizacion/informe_normalizacion.md",
+    "06_seleccion_dbms": "proyecto/base_datos/05_modelo_fisico/seleccion_dbms.md",
+    "07_modelo_fisico": "proyecto/base_datos/05_modelo_fisico/modelo_fisico.md",
+    "08_integridad": "proyecto/base_datos/06_integridad/integridad.md",
+    "09_seguridad": "proyecto/base_datos/07_seguridad/seguridad.md",
+    "10_auditoria_historico": "proyecto/base_datos/08_auditoria_historico/auditoria_historico.md",
+    "11_indices_rendimiento": "proyecto/base_datos/10_indices_rendimiento/indices_rendimiento.md",
+    "12_transacciones_concurrencia": "proyecto/base_datos/11_transacciones_concurrencia/transacciones_concurrencia.md",
+    "13_migraciones": "proyecto/base_datos/12_migraciones/migraciones.md"
+  }
 }

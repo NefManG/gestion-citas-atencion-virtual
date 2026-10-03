@@ -194,6 +194,41 @@ Salida:
 Salida:
 `proyecto/base_datos/15_reportes/validacion_final.md`
 
+## Control de aprobación humana
+
+El workflow debe ejecutarse estrictamente un paso a la vez.
+
+La finalización de un paso NO autoriza automáticamente el inicio del siguiente.
+
+Después de completar cada paso, el agente deberá:
+
+1. Ejecutar únicamente el paso correspondiente.
+2. Generar el artefacto definido para ese paso.
+3. Indicar el agente utilizado.
+4. Indicar el skill utilizado.
+5. Resumir las decisiones y hallazgos principales.
+6. Actualizar el checkpoint.
+7. DETENERSE.
+8. Esperar la revisión y aprobación explícita del usuario.
+
+La ausencia de errores o bloqueos NO constituye autorización para continuar.
+
+El agente NO debe iniciar el siguiente paso automáticamente.
+
+Solo una instrucción explícita del usuario, por ejemplo:
+
+"CONTINUAR CON EL PASO 02"
+
+autoriza la ejecución del siguiente paso.
+
+El agente no deberá ejecutar varios pasos en una misma ejecución salvo autorización explícita del usuario.
+
+La revisión y aprobación humana es obligatoria antes de avanzar a cada nueva etapa.
+
 ## Checkpoint
 Después de cada paso actualizar:
 `.agents/state/database-workflow.json`
+
+La actualización del checkpoint NO implica autorización para continuar.
+
+Después de actualizar el checkpoint, el agente deberá detenerse y esperar la aprobación explícita del usuario antes de ejecutar el siguiente paso.
