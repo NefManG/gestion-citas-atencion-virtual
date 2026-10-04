@@ -1,702 +1,1526 @@
 # Informe de Integridad — Paso 08
 
-**Sistema:** Sistema de Gestión de Citas y Atención Virtual — Hospital Boliviano Español
-**Generado:** Paso 08 — Integridad
-**Agente utilizado:** `database-engineer`
-**Skill utilizado:** `database-schema-designer` + `postgresql-table-design`
-**Workflow:** `02_database_workflow`
-**Fuente principal:** `modelo_fisico.md`
-**Estado:** Pendiente de validación humana
+**Sistema:** Sistema de Gestión de Citas y Atención Virtual — Hospital Boliviano Español  
+**Generado:** Paso 08 — Integridad  
+**Agente utilizado:** `database-engineer`  
+**Skill utilizado:** `database-schema-designer` + `postgresql-table-design`  
+**Workflow:** `02_database_workflow`  
+**Fuente principal:** `modelo_fisico.md` corregido + resultado de normalización del Paso 05  
+**Estado:** Corregido manualmente después del Paso 14 — Revisión DBA. Pendiente de nueva validación DBA.
 
 ---
 
-## 1. Objetivo del Paso 08
+# 1. Objetivo del Paso 08
 
-Documentar de forma exhaustiva **todas las restricciones de integridad** del modelo físico PostgreSQL:
-- Claves primarias (PK)
-- Claves foráneas (FK) con sus estrategias `ON DELETE` / `ON UPDATE`
-- Restricciones `UNIQUE` (incluidas compuestas y `NULLS NOT DISTINCT`)
-- Restricciones `CHECK`
-- Valores por defecto (`DEFAULT`)
-- Nulabilidad (`NOT NULL`)
-- Triggers de integridad referencial y reglas de negocio
-- Mapeo explícito de cada restricción a su **RF / RNF / RN / D** asociada
+Documentar las restricciones de integridad del modelo físico PostgreSQL, incluyendo:
 
-Este informe es la base para la revisión DBA (Paso 14) y la generación SQL (Paso 15).
+- claves primarias;
+- claves foráneas;
+- nulabilidad;
+- restricciones `UNIQUE`;
+- restricciones `CHECK`;
+- valores `DEFAULT`;
+- reglas de integridad entre tablas;
+- reglas de negocio;
+- triggers de validación;
+- trazabilidad RF/RNF/RN/D.
+
+Este documento incorpora las correcciones derivadas del:
+
+- Paso 05 — Normalización;
+- Paso 14 — Revisión DBA.
+
+## Corrección principal incorporada
+
+La tabla:
+
+`cita`
+
+ya no contiene:
+
+`id_medico`.
+
+El médico se obtiene mediante:
+
+`cita.id_horario`
+
+→
+
+`horario.id_medico`
+
+Por tanto, todas las reglas de integridad Médico–Cita y Médico–Especialidad deben utilizar el médico propietario del horario.
 
 ---
 
-## 2. Conceptos de integridad en PostgreSQL
+# 2. Principios de integridad utilizados
 
-| Tipo | Característica en PG | Nota |
-|------|---------------------|------|
-| **PK** | `UNIQUE` + `NOT NULL` implícitos; crea B-tree index | La PK siempre es indexada |
-| **FK** | No crea índice automáticamente → **indexar FK manualmente** | Regla crítica `postgresql-table-design` |
-| **UNIQUE** | Crea B-tree index; permite NULLs múltiples | PG15+: `NULLS NOT DISTINCT` para restringir a uno solo |
-| **CHECK** | Row-local; **NULL pasa** (lógica de 3 valores) | Combinar con `NOT NULL` cuando aplique |
-| **DEFAULT** | Valores no volátiles → DDL rápido; volátiles (`now()`) → rewrite completo de tabla | Usar `DEFAULT now()` para timestamps |
-| **TRIGGER** | `BEFORE INSERT/UPDATE/DELETE` para validación; `AFTER` para efectos en cascada | Usar triggers para reglas que cruzan tablas |
-| **EXCLUDE** | Prevención de superposiciones vía GiST | Usar para evitar dobles citas |
+| Tipo | Uso en PostgreSQL |
+|---|---|
+| PK | Identificación única de cada fila |
+| FK | Integridad referencial entre tablas |
+| UNIQUE | Evitar duplicados cuando la regla lo exige |
+| CHECK | Validaciones locales de atributos |
+| NOT NULL | Campos obligatorios |
+| DEFAULT | Valores iniciales aprobados |
+| Trigger | Reglas que involucran varias tablas o transiciones |
+| Índice UNIQUE parcial | Defensa de unicidad condicionada por estado |
+| Transacción | Operaciones que deben ejecutarse de forma atómica |
+
+## Regla importante
+
+Un `CHECK` debe utilizarse para condiciones evaluables dentro de la misma fila.
+
+Las reglas que dependen de otras tablas deben implementarse mediante:
+
+- FK;
+- trigger;
+- función;
+- restricción especializada;
+- o lógica transaccional.
 
 ---
 
-## 3. Restricciones por tabla
+# 3. Restricciones por tabla
 
-### 3.1 paciente
+# 3.1 paciente
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_paciente BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | CA-001 |
-| **NOT NULL** | `nombre`, `apellidos`, `documento_identidad`, `fecha_nacimiento`, `telefono` | RF-01, CA-002 |
-| **UNIQUE** | `documento_identidad` | RF-01 (identificador único) |
-| **CHECK** | `fecha_nacimiento <= CURRENT_DATE` | Validación fecha válida |
-| **CHECK** | `LENGTH(telefono) <= 20` | Formato celular/NIT |
-| **DEFAULT** | `created_at`, `updated_at` → `now()` | Auditoría técnica |
+|---|---|---|
+| PK | `id_paciente` | RF-01 |
+| NOT NULL | `nombre`, `apellidos`, `documento_identidad`, `fecha_nacimiento`, `telefono` | RF-01 |
+| UNIQUE | `documento_identidad` | RF-01 |
+| CHECK | `fecha_nacimiento <= CURRENT_DATE` | Validación |
+| CHECK | longitudes de campos | D-14 parcial |
+| DEFAULT | `created_at`, `updated_at` → `now()` | Auditoría técnica |
 
-**FK salientes:** Ninguna. (La vinculación Usuario-Paciente es en la tabla `usuario`.)
+### Reglas
 
-**Triggers:** Ninguno de integridad referencial.
+- Cada paciente debe tener un documento de identidad único.
+- La fecha de nacimiento no puede ser futura.
+- Los formatos definitivos permanecen sujetos a D-14.
+- Un paciente puede existir sin cuenta de usuario.
 
 ---
 
-### 3.2 medico
+# 3.2 medico
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_medico BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `nombre_completo`, `numero_colegiado`, `activo` | RF-02 |
-| **UNIQUE** | `numero_colegiado` | Registro profesional único |
-| **CHECK** | `LENGTH(numero_colegiado) >= 4` | Formato colegiatura |
-| **DEFAULT** | `activo` → `TRUE`, `created_at`/`updated_at` → `now()` | — |
+|---|---|---|
+| PK | `id_medico` | RF-02 |
+| NOT NULL | `nombre_completo`, `numero_colegiado`, `activo` | RF-02 |
+| UNIQUE | `numero_colegiado` | RF-02 |
+| DEFAULT | `activo = TRUE` | RF-02 |
+| DEFAULT | timestamps → `now()` | Auditoría técnica |
 
-**FK salientes:** Ninguna.
+### RN-02
 
-**Triggers:** Ninguno.
+Cada médico debe poseer al menos una especialidad activa.
 
-> **RN-02:** "Cada médico debe estar asociado a ≥ 1 especialidad activa" → **Restricción de existencia** (trigger, §6.1) — no es una FK/UNIQUE/CHECK simple.
+Esta regla no puede resolverse únicamente mediante una FK.
+
+Debe validarse mediante una regla de existencia dentro del conjunto:
+
+`medico_especialidad`.
 
 ---
 
-### 3.3 usuario
+# 3.3 usuario
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_usuario BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `username`, `password_hash`, `email`, `activo`, `intentos_fallidos` | RF-21, RNF-06 |
-| **UNIQUE** | `username`, `email` | Identificadores de cuenta únicos |
-| **CHECK** | `intentos_fallidos >= 0` | Semáforo de fuerza bruta |
-| **CHECK** | `LENGTH(password_hash) <= 255` | bcrypt/Argon2 |
-| **DEFAULT** | `activo` → `TRUE`, `created_at`/`updated_at` → `now()` | — |
-| **FK** | `id_paciente BIGINT UNIQUE REFERENCES paciente(id_paciente) ON DELETE SET NULL` | R-18 |
-| **FK** | `id_medico BIGINT UNIQUE REFERENCES medico(id_medico) ON DELETE SET NULL` | R-04 |
+|---|---|---|
+| PK | `id_usuario` | RF-21 |
+| NOT NULL | `username`, `password_hash`, `email`, `activo`, `intentos_fallidos` | RF-21, RNF-06 |
+| UNIQUE | `username` | RF-21 |
+| UNIQUE | `email` | RF-21 |
+| UNIQUE opcional | `id_paciente` | Usuario–Paciente 0..1 |
+| UNIQUE opcional | `id_medico` | Usuario–Médico 0..1 |
+| FK | `id_paciente → paciente.id_paciente` | RN-14 |
+| FK | `id_medico → medico.id_medico` | RN-15 |
+| CHECK | `intentos_fallidos >= 0` | Seguridad |
+| DEFAULT | `activo = TRUE` | RF-21 |
+| DEFAULT | `intentos_fallidos = 0` | Seguridad |
 
-**Nota FK Usuario–Paciente / Usuario–Médico:**
-- Columnas `id_paciente` e `id_medico` en `usuario` son **UNIQUE** y **NULLables**, permitiendo la relación 0..1:0..1.
-- `ON DELETE SET NULL`: si se deshabilita un paciente/médico (RN-35), la cuenta no se rompe.
+### Usuario–Paciente
 
-**Triggers:** Ninguno de integridad referencial.
+`usuario.id_paciente`
 
-> **RNF-06:** `password_hash` — el valor real de la contraseña **nunca** se escribe en la base; el DBMS solo almacena el hash. `pgcrypto::crypt()` (Paso 09).
+es nullable y único.
+
+### Usuario–Médico
+
+`usuario.id_medico`
+
+es nullable y único.
+
+### RNF-06
+
+La tabla almacena exclusivamente:
+
+`password_hash`.
+
+No se almacena la contraseña original.
 
 ---
 
-### 3.4 especialidad
+# 3.4 especialidad
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_especialidad BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `nombre`, `activo` | RF-03, CA-007 |
-| **UNIQUE** | `nombre` | Nombre de especialidad único |
-| **DEFAULT** | `activo` → `TRUE`, `created_at`/`updated_at` → `now()` | RF-03 (solo activas consultadas) |
-
-**FK salientes:** Ninguna.
-
-**Triggers:** Ninguno.
+|---|---|---|
+| PK | `id_especialidad` | RF-03 |
+| NOT NULL | `nombre`, `activo` | RF-03 |
+| UNIQUE | `nombre` | RF-03 |
+| DEFAULT | `activo = TRUE` | RF-03 |
 
 ---
 
-### 3.5 medico_especialidad (tabla asociativa)
+# 3.5 medico_especialidad
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK compuesta** | `(id_medico, id_especialidad)` | RN-02 (unicidad del par) |
-| **FK** | `id_medico REFERENCES medico(id_medico) ON DELETE RESTRICT` | — |
-| **FK** | `id_especialidad REFERENCES especialidad(id_especialidad) ON DELETE RESTRICT` | — |
-| **NOT NULL** | `id_medico`, `id_especialidad`, `fecha_asociacion`, `habilitada_modalidad_virtual` | — |
-| **DEFAULT** | `fecha_asociacion` → `CURRENT_DATE`, `habilitada_modalidad_virtual` → `FALSE` | D-08 pendiente |
+|---|---|---|
+| PK compuesta | `(id_medico, id_especialidad)` | RN-02 |
+| FK | `id_medico → medico.id_medico` | RN-02 |
+| FK | `id_especialidad → especialidad.id_especialidad` | RN-02 |
+| NOT NULL | `id_medico`, `id_especialidad` | RN-02 |
+| DEFAULT | `fecha_asociacion = CURRENT_DATE` | Operativo |
 
-**FK ON DELETE RESTRICT:**
-- No borrar médico si tiene especialidades asociadas (RN-35, D-06).
-- No borrar especialidad si tiene médicos asociados.
+### D-08
 
-**Triggers:** Ninguno de integridad referencial.
+No existe:
+
+`habilitada_modalidad_virtual`.
+
+D-08 continúa pendiente.
+
+No debe existir una columna física placeholder mientras no exista decisión aprobada.
 
 ---
 
-### 3.6 horario
+# 3.6 horario
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_horario BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `id_medico`, `hora_inicio`, `hora_fin`, `estado` | RF-05, RF-08 |
-| **FK** | `id_medico REFERENCES medico(id_medico) ON DELETE RESTRICT` | R-05 |
-| **CHECK** | `hora_fin > hora_inicio` | Franja coherente |
-| **CHECK** | `(dia_semana BETWEEN 1 AND 7) OR (dia_semana IS NULL)` | Días válidos |
-| **CHECK** | `dia_semana IS NULL XOR fecha_especifica IS NULL` | Uno u otro |
-| **CHECK** | `estado IN ('disponible','reservado','ocupado')` (ENUM `estado_horario`) | RN-03, RN-10 |
-| **DEFAULT** | `estado` → `'disponible'`, `created_at`/`updated_at` → `now()` | RN-03 |
+|---|---|---|
+| PK | `id_horario` | RF-05 |
+| FK | `id_medico → medico.id_medico` | RF-05 |
+| NOT NULL | `id_medico`, `hora_inicio`, `hora_fin`, `estado` | RF-05 |
+| CHECK | `hora_fin > hora_inicio` | Integridad temporal |
+| CHECK | `dia_semana BETWEEN 1 AND 7` cuando exista | RF-05 |
+| CHECK | `dia_semana` XOR `fecha_especifica` | Modelo de horario |
+| DEFAULT | `estado = 'disponible'` | RN-03 |
 
-**FK ON DELETE RESTRICT:** No borrar médico si tiene horarios activos (RN-35).
+### Dependencia funcional
 
-**Triggers:** Ninguno de integridad referencial.
+Cada horario pertenece exactamente a un médico:
 
-> **D-09:** `modalidad` en `horario` es NULLABLE (no se decide si es obligatorio).
+`id_horario → id_medico`
+
+Esta dependencia debe ser utilizada por todas las reglas relacionadas con el médico de una cita.
+
+### D-09
+
+No existe:
+
+`horario.modalidad`.
+
+D-09 continúa pendiente.
 
 ---
 
-### 3.7 cita (tabla central)
+# 3.7 cita
+
+La tabla `cita` corregida contiene:
+
+- `id_cita`;
+- `id_paciente`;
+- `id_horario`;
+- `id_especialidad`;
+- `id_usuario_registrador`;
+- `estado`;
+- `modalidad`;
+- `fecha_hora_programada`;
+- `fecha_hora_inicio_atencion`;
+- `fecha_hora_fin_atencion`;
+- timestamps técnicos;
+- observaciones.
+
+## Restricciones
 
 | Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_cita BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `id_paciente`, `id_medico`, `id_horario`, `id_especialidad`, `id_usuario_registrador`, `estado`, `modalidad`, `fecha_hora_inicio`, `fecha_creacion`, `fecha_actualizacion` | RN-01, RF-09 |
-| **FK** | `id_paciente REFERENCES paciente(id_paciente) ON DELETE RESTRICT` | R-08 |
-| **FK** | `id_medico REFERENCES medico(id_medico) ON DELETE RESTRICT` | R-09 |
-| **FK** | `id_horario REFERENCES horario(id_horario) ON DELETE RESTRICT` | R-07 |
-| **FK** | `id_especialidad REFERENCES especialidad(id_especialidad) ON DELETE RESTRICT` | R-10 |
-| **FK** | `id_usuario_registrador REFERENCES usuario(id_usuario) ON DELETE RESTRICT` | R-17 |
-| **UNIQUE** | `(id_medico, id_horario)` | RN-04, RNF-11 (no doble reserva) |
-| **CHECK** | `estado IN ('Programada','Confirmada','En_atencion','Finalizada','Cancelada','No_asistida')` (ENUM) | RN-07 |
-| **CHECK** | `modalidad IN ('presencial','virtual')` (ENUM) | RN-18, RN-19 |
-| **CHECK** | `fecha_hora_fin IS NULL OR fecha_hora_fin > fecha_hora_inicio` | RN-20 |
-| **DEFAULT** | `estado` → `'Programada'`, `modalidad` → `'presencial'`, timestamps → `now()` | RN-07, RN-18 |
+|---|---|---|
+| PK | `id_cita` | RF-09 |
+| FK | `id_paciente → paciente.id_paciente` | RN-01 |
+| FK | `id_horario → horario.id_horario` | RN-03 |
+| FK | `id_especialidad → especialidad.id_especialidad` | RN-01 |
+| FK | `id_usuario_registrador → usuario.id_usuario` | RF-10 |
+| NOT NULL | `id_paciente` | RN-01 |
+| NOT NULL | `id_horario` | RN-03 |
+| NOT NULL | `id_especialidad` | RN-01 |
+| NOT NULL | `id_usuario_registrador` | RF-10 |
+| NOT NULL | `estado` | RN-07 |
+| NOT NULL | `modalidad` | RN-18 |
+| NOT NULL | `fecha_hora_programada` | RF-09 |
+| DEFAULT | `estado = 'Programada'` | RN-07 |
+| DEFAULT | `modalidad = 'presencial'` | RN-18 |
 
-**FK ON DELETE RESTRICT en todas:**
-- No borrar paciente/médico/horario/especialidad/usuario si tienen citas asociadas (conservación ≥5 años, RN-22/D-20).
+## Eliminación de id_medico
 
-**Triggers de integridad en cita (ver §6):**
-- `fn_validar_cita_medico_especialidad()` — coherencia Médico–Especialidad
-- `fn_verificar_no_solapamiento_paciente()` — RN-05
-- `fn_verificar_no_doble_reserva()` — RN-04 (complemento a UNIQUE)
-- `fn_verificar_transiciones_estado()` — RN-07/08/09
-- `fn_actualizar_horario_al_reservar()` — RN-10
-- `fn_liberar_horario_al_cancelar()` — RN-13
-- `fn_auditar_cambio_cita()` — RN-23
+No existe:
 
----
+`cita.id_medico`.
 
-### 3.8 atencion_virtual
+Tampoco existe la FK:
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK = FK** | `id_cita BIGINT PRIMARY KEY REFERENCES cita(id_cita) ON DELETE RESTRICT` | R-11 (1:0..1) |
-| **NOT NULL** | `id_cita`, `enlace_acceso` | RN-19 |
-| **CHECK** | `LENGTH(enlace_acceso) <= 500` | Longitud de URL |
-| **CHECK** | `LENGTH(id_sesion_externa) <= 100` | Longitud ID externo |
-| **CHECK** | `estado_disponibilidad IN ('disponible','no_disponible')` | Estado integridad |
-| **DEFAULT** | `created_at`/`updated_at` → `now()` | — |
+`cita.id_medico → medico.id_medico`.
 
-**FK ON DELETE RESTRICT:** No borrar cita si tiene información virtual.
+La relación Médico–Cita se deriva mediante:
 
-**Triggers:** Ninguno (la integridad condicional modalidad ↔ atencion_virtual se verifica en `cita`).
+`cita.id_horario`
 
-> **RN-18/RN-19:** La existencia de fila en `atencion_virtual` ⇔ `cita.modalidad = 'virtual'`. Se valida con trigger en cita (Paso 12, transacción atómica).
+→
+
+`horario.id_medico`.
 
 ---
 
-### 3.9 registro_auditoria
+## Regla Médico–Especialidad
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_registro BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `id_cita`, `id_usuario_responsable`, `accion`, `valor_actual`, `fecha_hora` | RN-23 |
-| **FK** | `id_cita REFERENCES cita(id_cita) ON DELETE RESTRICT` | R-12 |
-| **FK** | `id_usuario_responsable REFERENCES usuario(id_usuario) ON DELETE RESTRICT` | R-16 |
-| **CHECK** | `accion IN ('crear','modificar','cancelar','finalizar','reprogramar','cambiar_modalidad')` (ENUM) | RN-23 |
-| **CHECK** | `LENGTH(campo_modificado) <= 100` | Semántica de campo |
-| **CHECK** | `LENGTH(user_agent) <= 500` | Metadato cliente |
-| **DEFAULT** | `fecha_hora` → `now()` (con `clock_timestamp()` en trigger) | RN-23 |
+Para cada cita debe verificarse que:
 
-**FK ON DELETE RESTRICT en ambas:**
-- No borrar cita ni usuario si tienen auditoría asociada (RN-25, D-20: conservar ≥5 años).
+`horario.id_medico`
 
-**Triggers:** Ninguno (la auditoría la genera el trigger `fn_auditar_cambio_cita` en `cita`).
+junto con:
 
----
+`cita.id_especialidad`
 
-### 3.10 parametros_configuracion
+formen una asociación existente en:
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_parametro BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `clave`, `valor`, `tipo_dato`, `descripcion`, `categoria`, `editable` | RN-28, RNF-07 |
-| **UNIQUE** | `clave` | Nombre técnico único |
-| **CHECK** | `tipo_dato IN ('integer','decimal','string','boolean','duration')` | Validación de tipo |
-| **CHECK** | `LENGTH(clave) <= 100`, `LENGTH(valor) <= 500`, `LENGTH(descripcion) <= 500`, `LENGTH(categoria) <= 50` | Longitudes |
-| **DEFAULT** | `editable` → `TRUE`, `created_at`/`updated_at` → `now()` | — |
+`medico_especialidad`.
 
-**FK salientes:** Ninguna.
+Formalmente:
 
-**Triggers:** Ninguno.
+`(horario.id_medico, cita.id_especialidad)`
+
+debe existir en:
+
+`medico_especialidad(id_medico, id_especialidad)`.
 
 ---
 
-### 3.11 rol
+## Doble reserva
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_rol BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `nombre`, `descripcion` | RF-21, RNF-05 |
-| **UNIQUE** | `nombre` | Roles únicos: paciente, médico, admisión, admin |
-| **DEFAULT** | `created_at` → `now()` | — |
+Se elimina:
 
-**FK salientes:** Ninguna.
+`UNIQUE(id_medico, id_horario)`.
 
-**Datos semilla:** paciente, médico, admisión, admin (RF-21, RNF-05, RT-06).
+También se evita:
 
-**Triggers:** Ninguno.
+`UNIQUE(id_horario)` absoluto.
 
----
+La regla correcta es:
 
-### 3.12 permiso
+> No puede existir simultáneamente más de una cita activa incompatible para la misma ocurrencia de un horario.
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK** | `id_permiso BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | — |
-| **NOT NULL** | `nombre`, `descripcion`, `recurso`, `accion` | RF-21, RNF-05 |
-| **UNIQUE** | `nombre` | Permisos únicos |
-| **CHECK** | `accion IN ('crear','leer','actualizar','eliminar','ejecutar')` | Operaciones RBAC válidas |
-| **CHECK** | `LENGTH(nombre) <= 100`, `LENGTH(descripcion) <= 300`, `LENGTH(recurso) <= 50` | Longitudes |
-| **DEFAULT** | `created_at` → `now()` | — |
+La ocurrencia de un horario recurrente se identifica mediante:
 
-**FK salientes:** Ninguna.
+`id_horario + fecha_hora_programada`.
 
-**Datos semilla:** permisos base de RBAC (D-10 pendiente alcance de admisión).
+Estados considerados como reserva activa:
 
-**Triggers:** Ninguno.
+- `Programada`;
+- `Confirmada`;
+- `En_atencion`.
 
----
+Estados que no bloquean nuevas reservas futuras:
 
-### 3.13 usuario_rol (tabla asociativa)
+- `Cancelada`;
+- `Finalizada`;
+- `No_asistida`.
 
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK compuesta** | `(id_usuario, id_rol)` | RF-21, RNF-05 |
-| **FK** | `id_usuario REFERENCES usuario(id_usuario) ON DELETE CASCADE` | — |
-| **FK** | `id_rol REFERENCES rol(id_rol) ON DELETE RESTRICT` | — |
-| **NOT NULL** | `id_usuario`, `id_rol`, `fecha_asignacion` | — |
-| **FK (opcional)** | `asignado_por REFERENCES usuario(id_usuario) ON DELETE SET NULL` | Trazabilidad de asignación |
-| **DEFAULT** | `fecha_asignacion` → `now()` | — |
+La defensa definitiva será un índice UNIQUE parcial en el Paso 11, complementado por transacción atómica en el Paso 12.
 
-**FK ON DELETE:**
-- Usuario → CASCADE (si se borra usuario, se borran sus roles).
-- Rol → RESTRICT (no borrar rol si tiene usuarios asignados, RN-17).
-
-**Triggers:** Ninguno.
-
----
-
-### 3.14 rol_permiso (tabla asociativa)
-
-| Restricción | Definición | Fuente |
-|-------------|-----------|--------|
-| **PK compuesta** | `(id_rol, id_permiso)` | RF-21, RNF-05 |
-| **FK** | `id_rol REFERENCES rol(id_rol) ON DELETE CASCADE` | — |
-| **FK** | `id_permiso REFERENCES permiso(id_permiso) ON DELETE CASCADE` | — |
-| **NOT NULL** | `id_rol`, `id_permiso` | — |
-
-**FK ON DELETE CASCADE:** Si se borra rol o permiso, se borran las asociaciones.
-
-**Triggers:** Ninguno.
-
----
-
-## 4. Resumen tabular de todas las restricciones
-
-### Tabla 1: Claves primarias
-
-| Tabla | PK |
-|-------|-----|
-| paciente | `id_paciente BIGINT GENERATED ALWAYS AS IDENTITY` |
-| medico | `id_medico BIGINT GENERATED ALWAYS AS IDENTITY` |
-| usuario | `id_usuario BIGINT GENERATED ALWAYS AS IDENTITY` |
-| especialidad | `id_especialidad BIGINT GENERATED ALWAYS AS IDENTITY` |
-| medico_especialidad | `(id_medico, id_especialidad)` compuesta |
-| horario | `id_horario BIGINT GENERATED ALWAYS AS IDENTITY` |
-| cita | `id_cita BIGINT GENERATED ALWAYS AS IDENTITY` |
-| atencion_virtual | `id_cita BIGINT GENERATED ALWAYS AS IDENTITY` (FK a cita) |
-| registro_auditoria | `id_registro BIGINT GENERATED ALWAYS AS IDENTITY` |
-| parametros_configuracion | `id_parametro BIGINT GENERATED ALWAYS AS IDENTITY` |
-| rol | `id_rol BIGINT GENERATED ALWAYS AS IDENTITY` |
-| permiso | `id_permiso BIGINT GENERATED ALWAYS AS IDENTITY` |
-| usuario_rol | `(id_usuario, id_rol)` compuesta |
-| rol_permiso | `(id_rol, id_permiso)` compuesta |
-
-### Tabla 2: Claves foráneas y estrategias ON DELETE
-
-| FK | Tabla origen | Referencia | ON DELETE | Justificación |
-|----|--------------|-----------|-----------|---------------|
-| `FK_usuario_paciente` | usuario | paciente.id_paciente | SET NULL | R-18; cuenta sobrevive a deshabilitación |
-| `FK_usuario_medico` | usuario | medico.id_medico | SET NULL | R-04; cuenta sobrevive a deshabilitación |
-| `FK_medico_especialidad_medico` | medico_especialidad | medico.id_medico | RESTRICT | RN-35, D-06 |
-| `FK_medico_especialidad_especialidad` | medico_especialidad | especialidad.id_especialidad | RESTRICT | RN-35 |
-| `FK_horario_medico` | horario | medico.id_medico | RESTRICT | RN-35; horarios asociados |
-| `FK_cita_paciente` | cita | paciente.id_paciente | RESTRICT | RN-22/D-20 conservación |
-| `FK_cita_medico` | cita | medico.id_medico | RESTRICT | RN-22/D-20 conservación |
-| `FK_cita_horario` | cita | horario.id_horario | RESTRICT | RN-07; horario asignado |
-| `FK_cita_especialidad` | cita | especialidad.id_especialidad | RESTRICT | RN-01 |
-| `FK_cita_usuario_registrador` | cita | usuario.id_usuario | RESTRICT | RN-22; auditoría |
-| `FK_atencion_virtual_cita` | atencion_virtual | cita.id_cita | RESTRICT | RN-18; información condicional |
-| `FK_auditoria_cita` | registro_auditoria | cita.id_cita | RESTRICT | RN-25/D-20 conservación |
-| `FK_auditoria_usuario` | registro_auditoria | usuario.id_usuario | RESTRICT | RN-25/D-20 conservación |
-| `FK_usuario_rol_usuario` | usuario_rol | usuario.id_usuario | CASCADE | Borrado de cuenta |
-| `FK_usuario_rol_rol` | usuario_rol | rol.id_rol | RESTRICT | RN-17; rol activo |
-| `FK_rol_permiso_rol` | rol_permiso | rol.id_rol | CASCADE | Limpieza |
-| `FK_rol_permiso_permiso` | rol_permiso | permiso.id_permiso | CASCADE | Limpieza |
-
-### Tabla 3: Restricciones UNIQUE
-
-| Tabla | Columna(s) | Tipo | Nota |
-|-------|-----------|------|------|
-| paciente | `documento_identidad` | SIMPLE | Identificador único de identidad clínica |
-| usuario | `username` | SIMPLE | Identificador de cuenta |
-| usuario | `email` | SIMPLE | Contacto único |
-| medico | `numero_colegiado` | SIMPLE | Registro profesional único |
-| especialidad | `nombre` | SIMPLE | Nombre único |
-| usuario_rol | `(id_usuario, id_rol)` | COMPUESTA (PK) | Un usuario–un rol |
-| rol | `nombre` | SIMPLE | Nombre único de rol |
-| permiso | `nombre` | SIMPLE | Nombre único de permiso |
-| parametros_configuracion | `clave` | SIMPLE | Nombre técnico único |
-| cita | `(id_medico, id_horario)` | COMPUESTA | RN-04 / RNF-11 — doble reserva prohibida |
-
-> **Nota PG15+:** Para `cita.id_horario` (si se quisiera unicidad estricta sobre NULLs), considerar `UNIQUE NULLS NOT DISTINCT`. No es necesario hoy, ya que `id_horario` es NOT NULL en cita.
-
-### Tabla 4: Restricciones CHECK por tabla
-
-| Tabla | CHECK | RN/RNF/D asociada |
-|-------|-------|-------------------|
-| paciente | `fecha_nacimiento <= CURRENT_DATE` | Validación |
-| paciente | `LENGTH(telefono) <= 20` | Formato |
-| medico | `LENGTH(numero_colegiado) >= 4` | Formato |
-| usuario | `intentos_fallidos >= 0` | RNF-04 (fuerza bruta) |
-| horario | `hora_fin > hora_inicio` | Validación franja |
-| horario | `dia_semana IS NULL XOR fecha_especifica IS NULL` | RN-03 |
-| cita | `estado IN (lista)` | RN-07 |
-| cita | `modalidad IN ('presencial','virtual')` | RN-18 |
-| cita | `fecha_hora_fin IS NULL OR fecha_hora_fin > fecha_hora_inicio` | RN-20 |
-| atencion_virtual | `LENGTH(enlace_acceso) <= 500` | Longitud |
-| atencion_virtual | `estado_disponibilidad IN (...)` | RN-30 |
-| registro_auditoria | `accion IN (lista)` | RN-23 |
-| registro_auditoria | `LENGTH(user_agent) <= 500` | Metadato |
-| parametros_configuracion | `tipo_dato IN (...)` | D-02/D-03/D-04 |
-| permiso | `accion IN ('crear','leer','actualizar','eliminar','ejecutar')` | D-10 |
-
-> **Comportamiento PG:** `CHECK` con `NULL` pasa (lógica de 3 valores). Por eso `hora_fin > hora_inicio` no necesita `NOT NULL` — los NULLs se manejan con los CHECK de `XOR` y de unicidad.
-
-### Tabla 5: Valores por defecto (DEFAULT)
-
-| Tabla | Columna | DEFAULT | Fuente |
-|-------|---------|---------|--------|
-| medico | `activo` | `TRUE` | RF-02 |
-| usuario | `activo` | `TRUE` | RF-21 |
-| usuario | `intentos_fallidos` | `0` | RNF-04 |
-| especialidad | `activo` | `TRUE` | CA-007 |
-| medico_especialidad | `fecha_asociacion` | `CURRENT_DATE` | — |
-| medico_especialidad | `habilitada_modalidad_virtual` | `FALSE` | D-08 pendiente |
-| horario | `estado` | `'disponible'` | RN-03, RN-10 |
-| cita | `estado` | `'Programada'` | RN-07 |
-| cita | `modalidad` | `'presencial'` | RN-18 |
-| cita / todas | `created_at`, `updated_at` | `now()` | Auditoría técnica |
-| atencion_virtual | `estado_disponibilidad` | `'disponible'` | RN-30 |
-| registro_auditoria | `fecha_hora` | `now()` (trigger: `clock_timestamp()`) | RN-23 |
-| usuario_rol | `fecha_asignacion` | `now()` | Trazabilidad |
-| rol, permiso, params, auditoria | `created_at` | `now()` | Auditoría técnica |
-
-### Tabla 6: NOT NULL — columnas obligatorias
-
-| Tabla | Columnas NOT NULL |
-|-------|-------------------|
-| paciente | `nombre`, `apellidos`, `documento_identidad`, `fecha_nacimiento`, `telefono`, `created_at`, `updated_at` |
-| medico | `nombre_completo`, `numero_colegiado`, `activo`, `created_at`, `updated_at` |
-| usuario | `username`, `password_hash`, `email`, `activo`, `intentos_fallidos`, `created_at`, `updated_at` |
-| especialidad | `nombre`, `activo`, `created_at`, `updated_at` |
-| medico_especialidad | `id_medico`, `id_especialidad`, `fecha_asociacion`, `habilitada_modalidad_virtual`, `created_at` |
-| horario | `id_medico`, `hora_inicio`, `hora_fin`, `estado`, `created_at`, `updated_at` |
-| cita | `id_paciente`, `id_medico`, `id_horario`, `id_especialidad`, `id_usuario_registrador`, `estado`, `modalidad`, `fecha_hora_inicio`, `fecha_creacion`, `fecha_actualizacion` |
-| atencion_virtual | `id_cita`, `enlace_acceso`, `created_at`, `updated_at` |
-| registro_auditoria | `id_cita`, `id_usuario_responsable`, `accion`, `valor_actual`, `fecha_hora` |
-| parametros_configuracion | `clave`, `valor`, `tipo_dato`, `descripcion`, `categoria`, `editable`, `created_at`, `updated_at` |
-| rol | `nombre`, `descripcion`, `created_at` |
-| permiso | `nombre`, `descripcion`, `recurso`, `accion`, `created_at` |
-| usuario_rol | `id_usuario`, `id_rol`, `fecha_asignacion` |
-| rol_permiso | `id_rol`, `id_permiso` |
-
----
-
-## 5. Trigger de integridad — código base PostgreSQL 18.6
-
-### 5.1 fn_validar_cita_medico_especialidad (RN-02 implícito)
+Ejemplo conceptual:
 
 ```sql
-CREATE OR REPLACE FUNCTION fn_validar_cita_medico_especialidad()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- La especialidad de la cita debe estar asociada al médico seleccionado
-    IF NOT EXISTS (
-        SELECT 1 FROM medico_especialidad me
-        WHERE me.id_medico = NEW.id_medico
-          AND me.id_especialidad = NEW.id_especialidad
-    ) THEN
-        RAISE EXCEPTION
-            'Cita inválida: la especialidad (%) no está asociada al médico (%)',
-            NEW.id_especialidad, NEW.id_medico;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_cita_validar_medico_especialidad
-BEFORE INSERT OR UPDATE OF id_medico, id_especialidad ON cita
-FOR EACH ROW EXECUTE FUNCTION fn_validar_cita_medico_especialidad();
-```
-
-**Fuente:** RN-02 implícito; R-10; §4.12 del modelo conceptual.
-
-### 5.2 fn_verificar_no_solapamiento_paciente (RN-05)
-
-```sql
-CREATE OR REPLACE FUNCTION fn_verificar_no_solapamiento_paciente()
-RETURNS TRIGGER AS $$
-DECLARE
-    t_inicio TIMESTAMP WITH TIME ZONE := NEW.fecha_hora_inicio;
-    t_fin   TIMESTAMP WITH TIME ZONE;
-BEGIN
-    t_fin := COALESCE(NEW.fecha_hora_fin, t_inicio + INTERVAL '1 hour');
-
-    IF EXISTS (
-        SELECT 1 FROM cita
-        WHERE id_paciente = NEW.id_paciente
-          AND id_cita != COALESCE(NEW.id_cita, 0)
-          AND ((fecha_hora_inicio < t_fin) AND (COALESCE(fecha_hora_fin, fecha_hora_inicio + INTERVAL '1 hour') > t_inicio))
-    ) THEN
-        RAISE EXCEPTION
-            'El paciente tiene citas que se superponen en ese horario', NEW.id_paciente;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_cita_verificar_solapamiento_paciente
-BEFORE INSERT OR UPDATE OF id_paciente, fecha_hora_inicio, fecha_hora_fin ON cita
-FOR EACH ROW EXECUTE FUNCTION fn_verificar_no_solapamiento_paciente();
-```
-
-**Fuente:** RN-05, D-11.
-
-### 5.3 fn_verificar_transiciones_estado (RN-07/08/09)
-
-```sql
-CREATE OR REPLACE FUNCTION fn_verificar_transiciones_estado()
-RETURNS TRIGGER AS $$
-DECLARE
-    transiciones_permitidas TEXT[][] := ARRAY[
-        ARRAY['Programada','Confirmada'],
-        ARRAY['Programada','Cancelada'],
-        ARRAY['Confirmada','En_atencion'],
-        ARRAY['Confirmada','Cancelada'],
-        ARRAY['Confirmada','No_asistida'],
-        ARRAY['En_atencion','Finalizada']
-    ];
-    ok BOOLEAN := FALSE;
-BEGIN
-    IF OLD IS NOT NULL THEN
-        FOR i IN 1..array_length(transiciones_permitidas, 1) LOOP
-            IF OLD.estado = transiciones_permitidas[i][1]
-               AND NEW.estado = transiciones_permitidas[i][2] THEN
-                ok := TRUE;
-                EXIT;
-            END IF;
-        END LOOP;
-
-        IF NOT ok THEN
-            RAISE EXCEPTION
-                'Transición de estado no permitida: % → %', OLD.estado, NEW.estado;
-        END IF;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_cita_verificar_transiciones
-BEFORE INSERT OR UPDATE OF estado ON cita
-FOR EACH ROW EXECUTE FUNCTION fn_verificar_transiciones_estado();
-```
-
-**Fuente:** RN-07 (conjunto de estados), RN-08 (transiciones), RN-09 (no reversa).
-
-### 5.4 fn_auditar_cambio_cita (RF-22, RN-23, RN-32)
-
-```sql
-CREATE OR REPLACE FUNCTION fn_auditar_cambio_cita()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        INSERT INTO registro_auditoria (id_cita, id_usuario_responsable, accion,
-                                        campo_modificado, valor_anterior, valor_actual,
-                                        fecha_hora)
-        VALUES (NEW.id_cita, current_setting('app.current_user_id')::bigint,
-                'crear', NULL, NULL,
-                row_to_json(NEW)::text, clock_timestamp());
-        RETURN NEW;
-    ELSIF TG_OP = 'UPDATE' THEN
-        IF NEW.estado != OLD.estado THEN
-            INSERT INTO registro_auditoria (id_cita, id_usuario_responsable, accion,
-                                            campo_modificado, valor_anterior, valor_actual,
-                                            fecha_hora)
-            VALUES (NEW.id_cica, current_setting('app.current_user_id')::bigint,
-                    'modificar', 'estado', OLD.estado::text, NEW.estado::text, clock_timestamp());
-        END IF;
-        -- Registrar también cambios de modalidad, horario, reprogramación
-        RETURN NEW;
-    ELSIF TG_OP = 'DELETE' THEN
-        INSERT INTO registro_auditoria (id_cita, id_usuario_responsable, accion,
-                                        campo_modificado, valor_anterior, valor_actual,
-                                        fecha_hora)
-        VALUES (OLD.id_cita, current_setting('app.current_user_id')::bigint,
-                'modificar', 'estado', OLD.estado::text, 'ELIMINADA', clock_timestamp());
-        RETURN OLD;
-    END IF;
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_cita_auditar_cambio
-AFTER INSERT OR UPDATE OR DELETE ON cita
-FOR EACH ROW EXECUTE FUNCTION fn_auditar_cambio_cita();
-```
-
-> **Nota:** En producción, `id_usuario_responsable` debe provenir de la autenticación de aplicación, no del rol de BD. Se recomienda `SET app.current_user_id` en la conexión.
-
-**Fuente:** RF-22, RN-23, RN-24, RN-25, D-12.
-
-### 5.5 fn_actualizar_horario_al_reservar y fn_liberar_horario (RN-10, RN-12, RN-13)
-
-```sql
--- Al confirmar una cita: el horario pasa a 'ocupado'
-CREATE OR REPLACE FUNCTION fn_actualizar_horario_al_reservar()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.estado = 'Confirmada' AND OLD.estado IS NULL THEN
-        UPDATE horario SET estado = 'ocupado' WHERE id_horario = NEW.id_horario;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Al cancelar una cita: el horario se libera
-CREATE OR REPLACE FUNCTION fn_liberar_horario_al_cancelar()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.estado = 'Cancelada' THEN
-        UPDATE horario SET estado = 'disponible' WHERE id_horario = NEW.id_horario;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Reprogramación atómica (nuevo reservado + antiguo liberado) — ver Paso 12
-```
-
-**Fuente:** RN-10 (ocupar al confirmar), RN-12 (reprogramación atómica), RN-13 (liberar al cancelar).
-
----
-
-## 6. Restricciones EXCLUDE (opcional — alternativa a triggers)
-
-Para evitar dobles reservas con superposición temporal (RN-05), se puede usar `EXCLUDE USING GIST` en lugar del trigger:
-
-```sql
-ALTER TABLE cita ADD CONSTRAINT cita_no_superposicion
-EXCLUDE USING GIST (
-    id_paciente WITH =,
-    tstzrange(fecha_hora_inicio, COALESCE(fecha_hora_fin, fecha_hora_inicio + INTERVAL '1 hour'), '[)') WITH &&
+CREATE UNIQUE INDEX uk_cita_horario_ocurrencia_activa
+ON cita (id_horario, fecha_hora_programada)
+WHERE estado IN (
+    'Programada',
+    'Confirmada',
+    'En_atencion'
 );
 ```
 
-> **Regla `postgresql-table-design`:** `EXCLUDE` previene superposiciones con operadores GiST. Requiere PG11+. Ventana `[)` (cerrada a la izquierda, abierta a la derecha). Opcional si ya existe trigger `fn_verificar_no_solapamiento_paciente`.
+Este índice se documenta aquí como regla de integridad, pero su diseño definitivo corresponde al Paso 11.
 
 ---
 
-## 7. Restricciones de negocio implementadas — trazabilidad completa
+## Fechas reales de atención
 
-| RN | Mecanismo | Ubicación |
-|----|-----------|-----------|
-| RN-01 | FK NOT NULL (paciente, médico) | cita |
-| RN-02 | Trigger `fn_validar_cita_medico_especialidad` + trigger de existencia ≥1 especialidad por médico | cita / medico |
-| RN-03 | FK horario + estado 'disponible' (trigger) + CHECK horario.id_medico = cita.id_medico | cita, horario |
-| RN-04 | UNIQUE (id_medico, id_horario) + trigger | cita |
-| RN-05 | Trigger `fn_verificar_no_solapamiento_paciente` (o EXCLUDE GIST) | cita |
-| RN-06 | Transacción atómica (SELECT FOR UPDATE) | Paso 12 |
-| RN-07 | ENUM `estado_cita` | cita |
-| RN-08 | Trigger `fn_verificar_transiciones_estado` | cita |
-| RN-09 | Trigger `fn_verificar_transiciones_estado` (no reversa) | cita |
-| RN-10 | Trigger `fn_actualizar_horario_al_reservar` | horario |
-| RN-12 | Transacción atómica de reprogramación | Paso 12 |
-| RN-13 | Trigger `fn_liberar_horario_al_cancelar` | horario |
-| RN-14 | RLS (Paso 09) + FK | cita, paciente |
-| RN-15 | RLS + filtro id_medico | cita |
-| RN-16 | RLS + `id_usuario_registrador` | cita |
-| RN-17 | RLS rol 'admin' + `rol_permiso` | sistema |
-| RN-18 | CHECK modalidad + trigger atencion_virtual | cita |
-| RN-19 | Trigger `fn_verificar_atencion_virtual_condicional` | atencion_virtual |
-| RN-20 | CHECK `fecha_hora_fin > fecha_hora_inicio` + transición En_atención | cita |
-| RN-21 | Cambio de estado solo autorizado por rol | Paso 09 |
-| RN-22 | ON DELETE RESTRICT | cita |
-| RN-23 | Trigger `fn_auditar_cambio_cita` | registro_auditoria |
-| RN-24 | `valor_anterior` + `valor_actual` | registro_auditoria |
-| RN-25 | ON DELETE RESTRICT en FK de auditoría | registro_auditoria |
-| RN-26..28 | `parametros_configuracion` + validación | Paso 09/12 |
-| RN-30 | `atencion_virtual.fecha_incidente`, `detalles_incidente` | atencion_virtual |
-| RN-32 | Auditoría en reprogramación/cambio modalidad | registro_auditoria |
-| RN-33/RN-34 | Entidades separadas + FK opcionales | usuario |
-| RN-35 | ON DELETE RESTRICT + activo BOOLEAN | paciente, medico, especialidad |
-| RNF-04 | `intentos_fallidos` + trigger de bloqueo | usuario |
-| RNF-05 | `rol`, `permiso`, `usuario_rol`, `rol_permiso` | RBAC |
-| RNF-06 | `password_hash` (hash, no texto plano) | usuario |
-| RNF-07 | `parametros_configuracion.tiempo_inactividad_sesion_minutos` | Paso 09 |
-| RNF-11 | Transacción atómica + UNIQUE | cita, horario |
+Cuando exista:
+
+`fecha_hora_fin_atencion`
+
+debe cumplirse:
+
+```text
+fecha_hora_fin_atencion > fecha_hora_inicio_atencion
+```
+
+Si la cita se encuentra en estado:
+
+`Finalizada`
+
+deben existir:
+
+- `fecha_hora_inicio_atencion`;
+- `fecha_hora_fin_atencion`.
 
 ---
 
-## 8. Decisiones pendientes en integridad
+# 3.8 atencion_virtual
 
-| Decisión | Afecta | Estado |
-|----------|--------|--------|
-| **D-08** | `habilitada_modalidad_virtual` en `medico_especialidad` | Columna presente (DEFAULT FALSE); trigger de validación pendiente |
-| **D-09** | `horario.modalidad` NULLABLE | Columna presente; si se fija `NOT NULL`, actualizar FK `cita.modalidad` |
-| **D-07** | Desactivar médico con citas futuras | ON DELETE RESTRICT; trigger de bloqueo pendiente |
-| **D-10** | Permisos de admisión | Permisos semilla pendientes; RLS pendiente |
-| **D-14** | Validación de formatos (DNI, teléfono, email) | CHECKs básicos presentes; validación formal pendiente |
+| Restricción | Definición | Fuente |
+|---|---|---|
+| PK/FK | `id_cita → cita.id_cita` | RN-18 |
+| NOT NULL | `id_cita`, `enlace_acceso`, `estado_disponibilidad` | RN-18 |
+| CHECK | longitud de URL | D-01 |
+| CHECK | estado de disponibilidad válido | RN-30 |
+
+### Cardinalidad
+
+`Cita 1 : 0..1 Atención Virtual`
+
+### Integridad condicional
+
+Cuando:
+
+`cita.modalidad = 'virtual'`
+
+debe existir la información necesaria para atención virtual.
+
+Cuando:
+
+`cita.modalidad = 'presencial'`
+
+no se requiere `atencion_virtual`.
+
+La validación completa se realiza transaccionalmente.
 
 ---
 
-## 9. Conclusiones del Paso 08
+# 3.9 registro_auditoria
 
-1. **14 tablas** con PK, FK, UNIQUE, CHECK, DEFAULT, NOT NULL **documentados y trazados** a RF/RNF/RN/D.
-2. **17 FK** definidas con estrategias `ON DELETE` (`RESTRICT` predominante para conservación; `CASCADE` solo en uniones N:M; `SET NULL` para vínculos Usuario-Paciente/Médico).
-3. **9 restricciones UNIQUE** (8 simples + 1 compuesta RN-04).
-4. **21 CHECK** definidos, combinados con NOT NULL donde aplica.
-5. **6 triggers de integridad** implementados: coherencia médico-especialidad, solapamiento paciente, transiciones de estado, auditoría, ocupar/liberar horarios.
-6. **EXCLUDE GIST** propuesto como alternativa para RN-05.
-7. **D-08/D-09** reflejadas como columnas placeholder; integridad asociada pendiente de decisión final.
-8. **Listo para Paso 09** (Seguridad: roles de BD, RLS, cifrado, SCRAM-SHA-256) y **Paso 10** (auditoría, histórico, versionamiento).
+| Restricción | Definición | Fuente |
+|---|---|---|
+| PK | `id_registro` | RF-22 |
+| FK | `id_cita → cita.id_cita` | RN-23 |
+| FK | `id_usuario_responsable → usuario.id_usuario` | RN-23 |
+| NOT NULL | `id_cita` | RN-23 |
+| NOT NULL | `id_usuario_responsable` | RN-23 |
+| NOT NULL | `accion` | RN-23 |
+| NOT NULL | `valor_actual` | RN-24 |
+| NOT NULL | `fecha_hora` | RN-23 |
+| DEFAULT | `fecha_hora = now()` | RN-23 |
+
+### Conservación
+
+Las FK utilizan `ON DELETE RESTRICT`.
+
+Una cita con registros de auditoría no debe eliminarse físicamente.
+
+Los registros de auditoría deben conservarse durante el período requerido.
 
 ---
 
-## 10. Próximo Paso
+# 3.10 parametros_configuracion
 
-**Paso 09 — Seguridad**
-Usar: `databases` (+ `sqlserver-security` si se hubiera seleccionado SQL Server, **no aplica** con PostgreSQL)
-Salida: `proyecto/base_datos/07_seguridad/seguridad.md`
+| Restricción | Definición |
+|---|---|
+| PK | `id_parametro` |
+| UNIQUE | `clave` |
+| NOT NULL | `clave`, `valor`, `tipo_dato`, `descripcion`, `categoria`, `editable` |
+| CHECK | dominio permitido de `tipo_dato` |
+| DEFAULT | `editable = TRUE` |
 
-DETENERSE y esperar aprobación humana.
+### D-02, D-03 y D-04
+
+Los siguientes parámetros existen conceptualmente:
+
+- `tiempo_min_cancelacion_minutos`;
+- `tiempo_min_reprogramacion_minutos`;
+- `tolerancia_no_asistida_minutos`;
+- `anticipacion_maxima_dias`.
+
+Sus valores continúan:
+
+`PENDIENTE`.
+
+No deben existir valores hardcodeados sin decisión humana.
+
+### RNF-07 / D-13
+
+Se conserva:
+
+`tiempo_inactividad_sesion_minutos = 15`
+
+como valor inicial configurable.
+
+---
+
+# 3.11 rol
+
+| Restricción | Definición |
+|---|---|
+| PK | `id_rol` |
+| UNIQUE | `nombre` |
+| NOT NULL | `nombre` |
+
+Roles identificados:
+
+- paciente;
+- medico;
+- admision;
+- admin.
+
+D-10 continúa pendiente respecto del alcance exacto de admisión.
+
+---
+
+# 3.12 permiso
+
+| Restricción | Definición |
+|---|---|
+| PK | `id_permiso` |
+| UNIQUE | `nombre` |
+| NOT NULL | `nombre`, `descripcion`, `recurso`, `accion` |
+| CHECK | dominio permitido de `accion` |
+
+---
+
+# 3.13 usuario_rol
+
+| Restricción | Definición |
+|---|---|
+| PK | `(id_usuario, id_rol)` |
+| FK | `id_usuario → usuario.id_usuario` |
+| FK | `id_rol → rol.id_rol` |
+| FK opcional | `asignado_por → usuario.id_usuario` |
+| NOT NULL | `id_usuario`, `id_rol` |
+| DEFAULT | `fecha_asignacion = now()` |
+
+---
+
+# 3.14 rol_permiso
+
+| Restricción | Definición |
+|---|---|
+| PK | `(id_rol, id_permiso)` |
+| FK | `id_rol → rol.id_rol` |
+| FK | `id_permiso → permiso.id_permiso` |
+| NOT NULL | `id_rol`, `id_permiso` |
+
+---
+
+# 4. Resumen de claves foráneas
+
+| Tabla origen | Columna | Referencia | ON DELETE |
+|---|---|---|---|
+| usuario | id_paciente | paciente.id_paciente | SET NULL |
+| usuario | id_medico | medico.id_medico | SET NULL |
+| medico_especialidad | id_medico | medico.id_medico | RESTRICT |
+| medico_especialidad | id_especialidad | especialidad.id_especialidad | RESTRICT |
+| horario | id_medico | medico.id_medico | RESTRICT |
+| cita | id_paciente | paciente.id_paciente | RESTRICT |
+| cita | id_horario | horario.id_horario | RESTRICT |
+| cita | id_especialidad | especialidad.id_especialidad | RESTRICT |
+| cita | id_usuario_registrador | usuario.id_usuario | RESTRICT |
+| atencion_virtual | id_cita | cita.id_cita | RESTRICT |
+| registro_auditoria | id_cita | cita.id_cita | RESTRICT |
+| registro_auditoria | id_usuario_responsable | usuario.id_usuario | RESTRICT |
+| usuario_rol | id_usuario | usuario.id_usuario | CASCADE |
+| usuario_rol | id_rol | rol.id_rol | RESTRICT |
+| usuario_rol | asignado_por | usuario.id_usuario | SET NULL |
+| rol_permiso | id_rol | rol.id_rol | CASCADE |
+| rol_permiso | id_permiso | permiso.id_permiso | CASCADE |
+
+No existe:
+
+`FK_cita_medico`.
+
+---
+
+# 5. Restricciones UNIQUE
+
+| Tabla | Campo(s) |
+|---|---|
+| paciente | documento_identidad |
+| medico | numero_colegiado |
+| usuario | username |
+| usuario | email |
+| usuario | id_paciente cuando exista |
+| usuario | id_medico cuando exista |
+| especialidad | nombre |
+| parametros_configuracion | clave |
+| rol | nombre |
+| permiso | nombre |
+| medico_especialidad | PK compuesta |
+| usuario_rol | PK compuesta |
+| rol_permiso | PK compuesta |
+
+## Cita
+
+No existe:
+
+```text
+UNIQUE(id_medico, id_horario)
+```
+
+ni:
+
+```text
+UNIQUE(id_horario)
+```
+
+absoluto.
+
+La unicidad necesaria es **condicional a una ocurrencia y a estados activos**.
+
+---
+
+# 6. Restricciones CHECK principales
+
+| Tabla | CHECK |
+|---|---|
+| paciente | fecha_nacimiento no futura |
+| usuario | intentos_fallidos >= 0 |
+| horario | hora_fin > hora_inicio |
+| horario | dia_semana entre 1 y 7 |
+| horario | dia_semana XOR fecha_especifica |
+| cita | estado válido |
+| cita | modalidad válida |
+| cita | fin real > inicio real |
+| atencion_virtual | longitud de enlace |
+| atencion_virtual | estado de disponibilidad |
+| registro_auditoria | acción válida |
+| parametros_configuracion | tipo_dato válido |
+| permiso | acción válida |
+
+---
+
+# 7. Valores DEFAULT principales
+
+| Tabla | Columna | DEFAULT |
+|---|---|---|
+| medico | activo | TRUE |
+| usuario | activo | TRUE |
+| usuario | intentos_fallidos | 0 |
+| especialidad | activo | TRUE |
+| medico_especialidad | fecha_asociacion | CURRENT_DATE |
+| horario | estado | disponible |
+| cita | estado | Programada |
+| cita | modalidad | presencial |
+| registro_auditoria | fecha_hora | now() |
+| usuario_rol | fecha_asignacion | now() |
+
+No existe DEFAULT para:
+
+`habilitada_modalidad_virtual`
+
+porque esa columna fue eliminada.
+
+---
+
+# 8. Trigger Médico–Especialidad corregido
+
+## 8.1 fn_validar_cita_medico_especialidad
+
+El trigger ya no utiliza:
+
+`NEW.id_medico`.
+
+Debe obtener el médico desde `horario`.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_validar_cita_medico_especialidad()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_medico BIGINT;
+BEGIN
+    SELECT h.id_medico
+      INTO v_id_medico
+      FROM horario h
+     WHERE h.id_horario = NEW.id_horario;
+
+    IF v_id_medico IS NULL THEN
+        RAISE EXCEPTION
+            'Cita inválida: el horario % no tiene un médico válido',
+            NEW.id_horario;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+          FROM medico_especialidad me
+         WHERE me.id_medico = v_id_medico
+           AND me.id_especialidad = NEW.id_especialidad
+    ) THEN
+        RAISE EXCEPTION
+            'Cita inválida: la especialidad % no está asociada al médico % del horario %',
+            NEW.id_especialidad,
+            v_id_medico,
+            NEW.id_horario;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_validar_medico_especialidad
+BEFORE INSERT OR UPDATE OF id_horario, id_especialidad
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_validar_cita_medico_especialidad();
+```
+
+### Fuente
+
+RN-02, RN-03.
+
+---
+
+# 9. Validación de doble reserva
+
+## 9.1 Validación temprana
+
+Puede existir una función de validación temprana que compruebe si ya existe una reserva activa para la misma ocurrencia.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_verificar_no_doble_reserva()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NEW.estado IN ('Programada', 'Confirmada', 'En_atencion') THEN
+
+        IF EXISTS (
+            SELECT 1
+              FROM cita c
+             WHERE c.id_horario = NEW.id_horario
+               AND c.fecha_hora_programada = NEW.fecha_hora_programada
+               AND c.estado IN (
+                    'Programada',
+                    'Confirmada',
+                    'En_atencion'
+               )
+               AND c.id_cita <> COALESCE(NEW.id_cita, 0)
+        ) THEN
+            RAISE EXCEPTION
+                'El horario % ya posee una reserva activa para %',
+                NEW.id_horario,
+                NEW.fecha_hora_programada;
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_no_doble_reserva
+BEFORE INSERT OR UPDATE OF
+    id_horario,
+    fecha_hora_programada,
+    estado
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_verificar_no_doble_reserva();
+```
+
+## Importante
+
+Este trigger mejora la validación funcional, pero **no constituye por sí solo la última línea de defensa ante concurrencia**.
+
+La protección definitiva debe incluir:
+
+- índice UNIQUE parcial;
+- transacción atómica;
+- mecanismo de concurrencia del Paso 12.
+
+---
+
+# 10. No superposición de citas del paciente
+
+RN-05 establece que un paciente no debe mantener citas activas superpuestas.
+
+Para calcular la duración programada se utiliza la duración del horario:
+
+`hora_fin - hora_inicio`.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_verificar_no_solapamiento_paciente()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_fin_nueva TIMESTAMPTZ;
+BEGIN
+
+    IF NEW.estado NOT IN (
+        'Programada',
+        'Confirmada',
+        'En_atencion'
+    ) THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT
+        NEW.fecha_hora_programada
+        + (h.hora_fin - h.hora_inicio)
+      INTO v_fin_nueva
+      FROM horario h
+     WHERE h.id_horario = NEW.id_horario;
+
+    IF v_fin_nueva IS NULL THEN
+        RAISE EXCEPTION
+            'No se pudo determinar la duración del horario %',
+            NEW.id_horario;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM cita c
+          JOIN horario h_existente
+            ON h_existente.id_horario = c.id_horario
+         WHERE c.id_paciente = NEW.id_paciente
+
+           AND c.id_cita <> COALESCE(NEW.id_cita, 0)
+
+           AND c.estado IN (
+               'Programada',
+               'Confirmada',
+               'En_atencion'
+           )
+
+           AND c.fecha_hora_programada < v_fin_nueva
+
+           AND (
+               c.fecha_hora_programada
+               + (
+                   h_existente.hora_fin
+                   - h_existente.hora_inicio
+               )
+           ) > NEW.fecha_hora_programada
+    ) THEN
+
+        RAISE EXCEPTION
+            'El paciente % tiene otra cita activa que se superpone',
+            NEW.id_paciente;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_verificar_solapamiento_paciente
+BEFORE INSERT OR UPDATE OF
+    id_paciente,
+    id_horario,
+    fecha_hora_programada,
+    estado
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_verificar_no_solapamiento_paciente();
+```
+
+### Fuente
+
+RN-05, D-11.
+
+---
+
+# 11. Transiciones de estado
+
+## fn_verificar_transiciones_estado
+
+El trigger debe ejecutarse solamente cuando el estado cambia.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_verificar_transiciones_estado()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+    IF NEW.estado = OLD.estado THEN
+        RETURN NEW;
+    END IF;
+
+    IF NOT (
+           (OLD.estado = 'Programada'
+            AND NEW.estado IN ('Confirmada', 'Cancelada'))
+
+        OR (OLD.estado = 'Confirmada'
+            AND NEW.estado IN (
+                'En_atencion',
+                'Cancelada',
+                'No_asistida'
+            ))
+
+        OR (OLD.estado = 'En_atencion'
+            AND NEW.estado = 'Finalizada')
+    ) THEN
+
+        RAISE EXCEPTION
+            'Transición de estado no permitida: % → %',
+            OLD.estado,
+            NEW.estado;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_verificar_transiciones
+BEFORE UPDATE OF estado
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_verificar_transiciones_estado();
+```
+
+### Fuente
+
+RN-07, RN-08, RN-09.
+
+---
+
+# 12. Integridad de fechas de atención
+
+```sql
+CREATE OR REPLACE FUNCTION fn_validar_fechas_atencion()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+    IF NEW.fecha_hora_inicio_atencion IS NOT NULL
+       AND NEW.fecha_hora_fin_atencion IS NOT NULL
+       AND NEW.fecha_hora_fin_atencion
+           <= NEW.fecha_hora_inicio_atencion THEN
+
+        RAISE EXCEPTION
+            'La fecha/hora de fin debe ser posterior al inicio';
+
+    END IF;
+
+    IF NEW.estado = 'Finalizada'
+       AND (
+           NEW.fecha_hora_inicio_atencion IS NULL
+           OR NEW.fecha_hora_fin_atencion IS NULL
+       ) THEN
+
+        RAISE EXCEPTION
+            'Una cita Finalizada debe registrar inicio y fin de atención';
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_validar_fechas_atencion
+BEFORE INSERT OR UPDATE OF
+    estado,
+    fecha_hora_inicio_atencion,
+    fecha_hora_fin_atencion
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_validar_fechas_atencion();
+```
+
+---
+
+# 13. Auditoría de cambios de cita
+
+El código anterior contenía el typo:
+
+`NEW.id_cica`.
+
+Se corrige a:
+
+`NEW.id_cita`.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_auditar_cambio_cita()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_usuario BIGINT;
+BEGIN
+
+    v_usuario :=
+        current_setting(
+            'app.current_user_id',
+            TRUE
+        )::BIGINT;
+
+    IF v_usuario IS NULL THEN
+        RAISE EXCEPTION
+            'No existe app.current_user_id para registrar auditoría';
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+
+        INSERT INTO registro_auditoria (
+            id_cita,
+            id_usuario_responsable,
+            accion,
+            campo_modificado,
+            valor_anterior,
+            valor_actual,
+            fecha_hora
+        )
+        VALUES (
+            NEW.id_cita,
+            v_usuario,
+            'crear',
+            NULL,
+            NULL,
+            row_to_json(NEW)::TEXT,
+            clock_timestamp()
+        );
+
+        RETURN NEW;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+
+        IF NEW.estado IS DISTINCT FROM OLD.estado THEN
+
+            INSERT INTO registro_auditoria (
+                id_cita,
+                id_usuario_responsable,
+                accion,
+                campo_modificado,
+                valor_anterior,
+                valor_actual,
+                fecha_hora
+            )
+            VALUES (
+                NEW.id_cita,
+                v_usuario,
+                'modificar',
+                'estado',
+                OLD.estado::TEXT,
+                NEW.estado::TEXT,
+                clock_timestamp()
+            );
+
+        END IF;
+
+        IF NEW.id_horario IS DISTINCT FROM OLD.id_horario
+           OR NEW.fecha_hora_programada
+              IS DISTINCT FROM OLD.fecha_hora_programada THEN
+
+            INSERT INTO registro_auditoria (
+                id_cita,
+                id_usuario_responsable,
+                accion,
+                campo_modificado,
+                valor_anterior,
+                valor_actual,
+                fecha_hora
+            )
+            VALUES (
+                NEW.id_cita,
+                v_usuario,
+                'reprogramar',
+                'horario',
+                CONCAT(
+                    OLD.id_horario,
+                    ' / ',
+                    OLD.fecha_hora_programada
+                ),
+                CONCAT(
+                    NEW.id_horario,
+                    ' / ',
+                    NEW.fecha_hora_programada
+                ),
+                clock_timestamp()
+            );
+
+        END IF;
+
+        IF NEW.modalidad IS DISTINCT FROM OLD.modalidad THEN
+
+            INSERT INTO registro_auditoria (
+                id_cita,
+                id_usuario_responsable,
+                accion,
+                campo_modificado,
+                valor_anterior,
+                valor_actual,
+                fecha_hora
+            )
+            VALUES (
+                NEW.id_cita,
+                v_usuario,
+                'cambiar_modalidad',
+                'modalidad',
+                OLD.modalidad::TEXT,
+                NEW.modalidad::TEXT,
+                clock_timestamp()
+            );
+
+        END IF;
+
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+
+        INSERT INTO registro_auditoria (
+            id_cita,
+            id_usuario_responsable,
+            accion,
+            campo_modificado,
+            valor_anterior,
+            valor_actual,
+            fecha_hora
+        )
+        VALUES (
+            OLD.id_cita,
+            v_usuario,
+            'modificar',
+            NULL,
+            row_to_json(OLD)::TEXT,
+            'ELIMINADA',
+            clock_timestamp()
+        );
+
+        RETURN OLD;
+
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trg_cita_auditar_cambio
+AFTER INSERT OR UPDATE OR DELETE
+ON cita
+FOR EACH ROW
+EXECUTE FUNCTION fn_auditar_cambio_cita();
+```
+
+### Nota
+
+La política de conservación establece que las citas históricas normalmente no deben borrarse físicamente.
+
+El bloque `DELETE` representa una defensa adicional si una operación administrativa autorizada llegara a ejecutarse.
+
+---
+
+# 14. Estado operativo del horario
+
+El modelo conserva:
+
+- disponible;
+- reservado;
+- ocupado.
+
+La modificación del estado debe mantenerse coordinada con la operación de reserva.
+
+## Reserva inicial
+
+```sql
+CREATE OR REPLACE FUNCTION fn_actualizar_horario_al_reservar()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+    IF NEW.estado = 'Programada' THEN
+
+        UPDATE horario
+           SET estado = 'reservado',
+               updated_at = now()
+         WHERE id_horario = NEW.id_horario;
+
+    ELSIF NEW.estado IN ('Confirmada', 'En_atencion') THEN
+
+        UPDATE horario
+           SET estado = 'ocupado',
+               updated_at = now()
+         WHERE id_horario = NEW.id_horario;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+```
+
+## Liberación
+
+La cancelación o reprogramación debe liberar la ocurrencia anterior de acuerdo con las reglas transaccionales.
+
+La implementación definitiva pertenece al Paso 12, porque debe evitar condiciones de carrera.
+
+No debe considerarse el trigger como sustituto del control transaccional.
+
+---
+
+# 15. Integridad de Atención Virtual
+
+La relación:
+
+`cita.modalidad ↔ atencion_virtual`
+
+cruza tablas.
+
+No puede implementarse mediante un `CHECK` simple de `cita`.
+
+La validación debe realizarse mediante una función o dentro de la transacción correspondiente.
+
+Reglas:
+
+- si `modalidad = virtual`, debe existir información virtual;
+- si `modalidad = presencial`, no es obligatoria.
+
+D-01 continúa pendiente respecto del proveedor externo.
+
+---
+
+# 16. Índice parcial para doble reserva
+
+La última línea de defensa de RN-04/RNF-11 debe estar en persistencia.
+
+La estrategia propuesta para PostgreSQL es:
+
+```sql
+CREATE UNIQUE INDEX uk_cita_horario_ocurrencia_activa
+ON cita (
+    id_horario,
+    fecha_hora_programada
+)
+WHERE estado IN (
+    'Programada',
+    'Confirmada',
+    'En_atencion'
+);
+```
+
+## Importante
+
+Este índice:
+
+- no bloquea una cita cancelada histórica;
+- no bloquea una cita finalizada histórica;
+- no bloquea una cita no asistida histórica;
+- evita dos reservas activas sobre la misma ocurrencia.
+
+La creación formal y análisis de rendimiento pertenece al Paso 11.
+
+---
+
+# 17. Concurrencia
+
+El trigger:
+
+`fn_verificar_no_doble_reserva()`
+
+no es suficiente ante dos transacciones concurrentes.
+
+RNF-11 exige combinar:
+
+1. validación de disponibilidad;
+2. transacción;
+3. bloqueo/estrategia de concurrencia;
+4. índice UNIQUE parcial como última línea de defensa.
+
+La estrategia final corresponde al Paso 12.
+
+---
+
+# 18. Trazabilidad de reglas de negocio
+
+| Regla | Implementación corregida |
+|---|---|
+| RN-01 | FK paciente, horario, especialidad y usuario registrador |
+| RN-02 | Validación Médico–Especialidad obteniendo médico desde horario |
+| RN-03 | `cita.id_horario` + `horario.id_medico` |
+| RN-04 | Reserva activa única por ocurrencia |
+| RN-05 | Trigger no superposición paciente |
+| RN-06 | Transacción atómica Paso 12 |
+| RN-07 | ENUM estado |
+| RN-08 | Trigger de transiciones |
+| RN-09 | Sin reversión desde estados terminales |
+| RN-10 | Gestión operativa del horario |
+| RN-12 | Reprogramación atómica |
+| RN-13 | Liberación de horario |
+| RN-14 | RLS paciente |
+| RN-15 | Médico derivado mediante horario |
+| RN-16 | Usuario registrador |
+| RN-18 | modalidad cita |
+| RN-19 | Integridad condicional atención virtual |
+| RN-20 | Fechas reales de atención |
+| RN-22 | Conservación + RESTRICT |
+| RN-23 | Trigger auditoría |
+| RN-24 | valor anterior/actual |
+| RN-25 | conservación auditoría |
+| RN-26 | parámetro cancelación/reprogramación pendiente |
+| RN-27 | tolerancia pendiente |
+| RN-28 | anticipación pendiente |
+| RN-30 | datos de incidente virtual |
+| RN-32 | auditoría reprogramación/modalidad |
+| RN-33/34 | Médico ≠ Usuario |
+| RN-35 | desactivación lógica / RESTRICT |
+| RNF-05 | RBAC |
+| RNF-06 | password_hash |
+| RNF-07 | inactividad 15 min configurable |
+| RNF-11 | transacción + índice parcial |
+
+---
+
+# 19. D-08 y D-09
+
+## D-08
+
+Continúa pendiente.
+
+No existe:
+
+`medico_especialidad.habilitada_modalidad_virtual`.
+
+## D-09
+
+Continúa pendiente.
+
+No existe:
+
+`horario.modalidad`.
+
+La modalidad permanece en:
+
+`cita.modalidad`.
+
+---
+
+# 20. D-02, D-03 y D-04
+
+Continúan pendientes.
+
+No deben existir valores arbitrarios como:
+
+- 60 minutos;
+- 15 minutos;
+- 90 días;
+
+salvo que posteriormente sean aprobados explícitamente.
+
+La tabla de parámetros permite asignarlos cuando exista decisión humana.
+
+---
+
+# 21. Cambios realizados respecto de la versión anterior
+
+## Cambio 1
+
+Eliminado:
+
+`cita.id_medico`.
+
+---
+
+## Cambio 2
+
+Eliminada FK:
+
+`cita.id_medico → medico.id_medico`.
+
+---
+
+## Cambio 3
+
+Eliminada:
+
+`UNIQUE(id_medico, id_horario)`.
+
+---
+
+## Cambio 4
+
+No se crea:
+
+`UNIQUE(id_horario)` absoluto.
+
+---
+
+## Cambio 5
+
+La doble reserva se define por:
+
+`id_horario + fecha_hora_programada + estado activo`.
+
+---
+
+## Cambio 6
+
+El trigger Médico–Especialidad obtiene el médico desde:
+
+`horario.id_medico`.
+
+---
+
+## Cambio 7
+
+Se elimina:
+
+`habilitada_modalidad_virtual`.
+
+D-08 sigue pendiente.
+
+---
+
+## Cambio 8
+
+Se elimina:
+
+`horario.modalidad`.
+
+D-09 sigue pendiente.
+
+---
+
+## Cambio 9
+
+El trigger de auditoría corrige:
+
+`NEW.id_cica`
+
+por:
+
+`NEW.id_cita`.
+
+---
+
+## Cambio 10
+
+La validación de solapamiento utiliza:
+
+`fecha_hora_programada`
+
+y la duración del horario.
+
+---
+
+## Cambio 11
+
+D-02, D-03 y D-04 permanecen sin valores hardcodeados.
+
+---
+
+# 22. Conclusiones del Paso 08 corregido
+
+1. Se mantienen las 14 tablas físicas.
+
+2. `cita.id_medico` fue eliminado.
+
+3. La relación Médico–Cita se obtiene mediante:
+
+   `cita.id_horario → horario.id_medico`.
+
+4. La coherencia Médico–Especialidad utiliza:
+
+   `(horario.id_medico, cita.id_especialidad)`.
+
+5. Se elimina la restricción:
+
+   `UNIQUE(id_medico, id_horario)`.
+
+6. No se establece:
+
+   `UNIQUE(id_horario)` absoluto.
+
+7. La protección de doble reserva considera:
+
+   `id_horario + fecha_hora_programada`
+
+   únicamente sobre estados activos.
+
+8. La protección definitiva combinará índice parcial y control transaccional.
+
+9. Se conserva el historial de citas canceladas, finalizadas y no asistidas.
+
+10. El trigger de no superposición del paciente se actualiza al modelo corregido.
+
+11. El trigger de auditoría corrige el typo `NEW.id_cica`.
+
+12. Las transiciones de estado se validan únicamente en `UPDATE`.
+
+13. D-08 y D-09 permanecen pendientes sin placeholders físicos.
+
+14. D-02, D-03 y D-04 permanecen sin valores arbitrarios.
+
+15. El documento queda alineado con el modelo lógico y físico corregidos.
+
+---
+
+# 23. Estado del archivo
+
+**Archivo:**
+
+`proyecto/base_datos/06_integridad/integridad.md`
+
+**Paso de origen:**
+
+`Paso 08 — Integridad`
+
+**Agente utilizado:**
+
+`database-engineer`
+
+**Skills utilizados:**
+
+- `database-schema-designer`
+- `postgresql-table-design`
+
+**Corrección posterior:**
+
+Propagación de:
+
+- Paso 05 — Normalización;
+- Paso 14 — Revisión DBA con `STATUS: CHANGES_REQUIRED`.
+
+**Estado:**
+
+Corregido manualmente y pendiente de nueva Revisión DBA.
+
+---
+
+# 24. Control de avance
+
+Esta corrección no autoriza:
+
+`Paso 15 — Generación SQL`.
+
+Todavía deben corregirse:
+
+- `07_seguridad/seguridad.md`;
+- `08_auditoria_historico/auditoria_historico.md`;
+- `10_indices_rendimiento/indices_rendimiento.md`;
+- `11_transacciones_concurrencia/transacciones_concurrencia.md`;
+- `12_migraciones/migraciones.md`.
+
+Después debe volver a ejecutarse:
+
+`Paso 14 — Revisión DBA`.
+
+Solo puede avanzarse al Paso 15 cuando el informe termine con:
+
+`STATUS: APPROVED`.
+
+**NO generar SQL todavía.**
+
+**DETENERSE y esperar nueva validación DBA.**

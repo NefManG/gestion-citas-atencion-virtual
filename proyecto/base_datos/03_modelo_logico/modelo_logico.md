@@ -7,7 +7,7 @@
 **Ruta del skill:** `.agents/skills/database-schema-designer/SKILL.md`  
 **Workflow:** `02_database_workflow`  
 **Fuente principal:** `proyecto/base_datos/02_modelo_conceptual/modelo_conceptual.md` + `proyecto/base_datos/02_modelo_conceptual/diagrama_er.md`  
-**Estado:**pendiente de validación humana  
+**Estado:** Corregido posteriormente para propagar la normalización aprobada en el Paso 05 y los hallazgos del Paso 14 — Revisión DBA. Pendiente de nueva validación DBA.
 
 ---
 
@@ -17,7 +17,7 @@ El presente documento transforma el modelo conceptual aprobado y su diagrama E-R
 
 El modelo se mantiene independiente de un sistema gestor de base de datos específico.
 
-En este paso se busca establecer la estructura lógica de persistencia sin entrar todavía en decisiones propias del modelo físico.
+En este paso se establece la estructura lógica de persistencia sin entrar todavía en decisiones propias del modelo físico.
 
 ### Este paso NO:
 
@@ -28,13 +28,34 @@ En este paso se busca establecer la estructura lógica de persistencia sin entra
 - selecciona mecanismos específicos de bloqueo;
 - define triggers concretos;
 - selecciona funciones particulares de un SGBD;
-- ejecuta formalmente la normalización;
-- resuelve las decisiones pendientes D-08 y D-09;
-- ejecuta el Paso 05.
+- resuelve técnicamente las reglas de concurrencia;
+- materializa las decisiones pendientes D-08 y D-09.
 
-El resultado de este paso servirá como entrada para:
+### Nota de actualización posterior
 
-**Paso 05 — Normalización**
+Durante el **Paso 05 — Normalización** se detectó que almacenar simultáneamente:
+
+`cita.id_horario`
+
+e:
+
+`cita.id_medico`
+
+producía la dependencia funcional:
+
+`id_horario → id_medico`
+
+y, por tanto:
+
+`id_cita → id_horario → id_medico`
+
+Como resultado, el modelo lógico fue corregido para eliminar `cita.id_medico`.
+
+El médico correspondiente a una cita se determina ahora mediante:
+
+`cita.id_horario → horario.id_medico`
+
+Esta corrección se incorpora en el presente documento para mantener consistencia con los pasos posteriores del workflow.
 
 ---
 
@@ -45,10 +66,11 @@ El resultado de este paso servirá como entrada para:
 | Separación conceptual | Paciente, Médico y Usuario continúan siendo entidades diferentes |
 | Integridad lógica | Se identifican PK, FK, unicidad, obligatoriedad y reglas de dominio |
 | Relaciones N:M | Se resuelven mediante relaciones asociativas |
-| Independencia del SGBD | No se utilizan tipos ni mecanismos exclusivos de un motor |
+| Independencia del SGBD | No se utilizan mecanismos exclusivos de un motor |
 | Trazabilidad | Las estructuras conservan relación con RF, RNF, RN y decisiones |
 | Decisiones pendientes | No se materializan decisiones todavía no aprobadas |
-| Preparación para normalización | El modelo será evaluado formalmente en 1FN, 2FN, 3FN y BCNF durante el Paso 05 |
+| Normalización | Se incorpora la corrección aprobada en el Paso 05 |
+| Conservación histórica | No se eliminan citas históricas para simplificar restricciones de unicidad |
 
 ---
 
@@ -57,7 +79,7 @@ El resultado de este paso servirá como entrada para:
 El modelo lógico está compuesto por **14 tablas**:
 
 - 12 derivadas de las entidades conceptuales aprobadas;
-- 2 tablas asociativas adicionales necesarias para resolver las relaciones N:M del modelo RBAC.
+- 2 tablas asociativas adicionales para resolver las relaciones N:M del modelo RBAC.
 
 Las tablas son:
 
@@ -124,7 +146,7 @@ RF-01, RF-14, RF-15, RN-14.
 - Cada médico debe estar asociado al menos a una especialidad activa.
 - Un médico puede existir sin una cuenta de usuario.
 - Un médico puede definir múltiples bloques de horario.
-- Un médico puede atender múltiples citas.
+- Un médico puede atender múltiples citas a través de sus horarios.
 
 ### Trazabilidad
 
@@ -152,11 +174,11 @@ RF-02, RF-04, RF-07, RF-16, RN-02, RN-15, RN-33, RN-34, RN-35.
 
 Nunca debe almacenarse la contraseña en texto plano.
 
-La selección del algoritmo concreto de protección se realizará durante el Paso 09 — Seguridad.
+La selección del algoritmo concreto de protección corresponde al Paso 09 — Seguridad.
 
 ### Usuario–Paciente
 
-La relación se representa mediante:
+Relación:
 
 `usuario.id_paciente → paciente.id_paciente`
 
@@ -173,7 +195,7 @@ Cardinalidad:
 
 ### Usuario–Médico
 
-La relación se representa mediante:
+Relación:
 
 `usuario.id_medico → medico.id_medico`
 
@@ -188,7 +210,7 @@ Cardinalidad:
 
 **Médico 0..1 ↔ 0..1 Usuario**
 
-No se establece todavía una regla que impida que una cuenta pueda relacionarse simultáneamente con Paciente y Médico, ya que el modelo de roles admite múltiples roles y no existe una decisión aprobada que establezca exclusividad.
+No se establece una regla que impida que una cuenta pueda relacionarse simultáneamente con Paciente y Médico, ya que el modelo de roles admite múltiples roles y no existe una decisión aprobada que establezca exclusividad.
 
 ### Trazabilidad
 
@@ -236,8 +258,6 @@ RF-03, RF-04, RF-06, RN-02, D-08.
 
 ### Clave primaria lógica
 
-La clave primaria compuesta es:
-
 `(id_medico, id_especialidad)`
 
 Esto garantiza que la combinación Médico–Especialidad no se repita.
@@ -252,7 +272,7 @@ Esto garantiza que la combinación Médico–Especialidad no se repita.
 
 Cada médico debe estar relacionado con al menos una especialidad activa.
 
-La forma concreta de garantizar esta regla será evaluada en las etapas de integridad y diseño físico.
+La forma concreta de garantizar esta regla corresponde a las etapas de integridad y diseño físico.
 
 ### D-08 pendiente
 
@@ -299,11 +319,11 @@ El estado debe pertenecer a:
 ### Reglas lógicas
 
 - `hora_fin` debe ser posterior a `hora_inicio`.
-- El horario pertenece a un único médico.
+- Cada horario pertenece exactamente a un médico.
+- `id_horario → id_medico`.
 - Debe existir información suficiente para determinar cuándo ocurre el bloque.
-- Cuando el diseño utilice `dia_semana`, este representa disponibilidad recurrente.
-- Cuando utilice `fecha_especifica`, representa una disponibilidad puntual.
-- La relación exacta entre `dia_semana` y `fecha_especifica` será revisada formalmente durante el Paso 05.
+- Cuando el diseño utilice `dia_semana`, representa disponibilidad recurrente.
+- Cuando utilice `fecha_especifica`, representa disponibilidad puntual.
 
 ### D-09 pendiente
 
@@ -321,11 +341,12 @@ RF-05, RF-08, RF-17, RN-03, RN-10, RN-12, RN-13, D-09.
 
 **Propósito:** representar la entidad transaccional central del sistema.
 
+## Estructura normalizada
+
 | Atributo | Tipo lógico | Restricción lógica | Descripción |
 |---|---|---|---|
 | id_cita | Identificador | PK, obligatorio | Identificador de la cita |
 | id_paciente | Identificador | FK → paciente.id_paciente, obligatorio | Paciente |
-| id_medico | Identificador | FK → medico.id_medico, obligatorio | Médico |
 | id_especialidad | Identificador | FK lógica, obligatorio | Especialidad seleccionada |
 | id_horario | Identificador | FK → horario.id_horario, obligatorio | Bloque utilizado |
 | id_usuario_registrador | Identificador | FK → usuario.id_usuario, obligatorio | Usuario que registra la cita |
@@ -335,7 +356,23 @@ RF-05, RF-08, RF-17, RN-03, RN-10, RN-12, RN-13, D-09.
 | fecha_hora_inicio_atencion | FechaHora | Opcional | Inicio real de la atención |
 | fecha_hora_fin_atencion | FechaHora | Opcional | Fin real de la atención |
 
-### Estados permitidos
+### Cambio de normalización
+
+`cita` **no almacena `id_medico` directamente**.
+
+La relación con Médico se obtiene mediante:
+
+`cita.id_horario → horario.id_horario`
+
+y:
+
+`horario.id_medico → medico.id_medico`
+
+Esto evita mantener dos representaciones del mismo médico en una cita.
+
+---
+
+## Estados permitidos
 
 La cita debe encontrarse en uno de los siguientes estados:
 
@@ -346,14 +383,16 @@ La cita debe encontrarse en uno de los siguientes estados:
 - Cancelada;
 - No asistida.
 
-### Modalidades
+---
 
-La modalidad debe identificar si la cita es:
+## Modalidades
+
+La modalidad identifica si la cita es:
 
 - presencial;
 - virtual.
 
-La existencia de este atributo no resuelve D-09.
+La existencia de `cita.modalidad` no resuelve D-09.
 
 D-09 continúa determinando si el **Horario** también debe contener información de modalidad.
 
@@ -371,35 +410,63 @@ Toda cita debe corresponder a un paciente.
 
 ---
 
-## Relación Médico–Cita
-
-`cita.id_medico → medico.id_medico`
-
-Cardinalidad:
-
-**Médico 1:N Cita**
-
-Toda cita debe corresponder a un médico.
-
----
-
 ## Relación Horario–Cita
 
 `cita.id_horario → horario.id_horario`
 
 Cada cita debe utilizar exactamente un horario.
 
-Un horario no puede mantener simultáneamente más de una reserva incompatible.
+El horario utilizado determina el médico responsable de la cita.
 
-### Importante
+---
 
-No se establece en este paso una restricción de unicidad física incondicional sobre `id_horario`, porque las citas canceladas, reprogramadas o históricas deben conservarse y el horario puede volver a quedar disponible.
+## Relación Médico–Cita
 
-La regla lógica es:
+La relación conceptual continúa siendo:
+
+**Médico 1:N Cita**
+
+pero su implementación lógica es **indirecta**.
+
+Ruta:
+
+`CITA`
+
+→ `HORARIO`
+
+→ `MEDICO`
+
+Formalmente:
+
+`cita.id_horario → horario.id_horario`
+
+`horario.id_medico → medico.id_medico`
+
+Por tanto, no se mantiene:
+
+`cita.id_medico`
+
+como atributo redundante.
+
+---
+
+## Regla Horario–Cita y conservación histórica
+
+Un horario no puede mantener simultáneamente más de una reserva activa incompatible.
+
+No se establece una restricción lógica de unicidad absoluta sobre:
+
+`id_horario`
+
+porque las citas canceladas, reprogramadas, finalizadas o históricas deben conservarse según las reglas del sistema.
+
+La regla correcta es:
 
 > En un momento determinado no pueden coexistir dos citas activas incompatibles asociadas al mismo horario.
 
-El mecanismo concreto para garantizar esta regla se definirá durante los pasos de integridad, selección del SGBD y transacciones/concurrencia.
+Una cita histórica no debe eliminarse únicamente para permitir la reutilización lógica del horario.
+
+El mecanismo concreto para garantizar esta regla corresponde a los pasos de integridad y transacciones/concurrencia.
 
 ---
 
@@ -411,7 +478,7 @@ Cardinalidad:
 
 **Usuario 1:N Cita**
 
-Representa únicamente al usuario que registró originalmente la cita.
+Representa al usuario que registró originalmente la cita.
 
 Las modificaciones posteriores deben identificarse mediante `registro_auditoria`.
 
@@ -419,25 +486,37 @@ Las modificaciones posteriores deben identificarse mediante `registro_auditoria`
 
 ## Coherencia Médico–Especialidad–Cita
 
-La combinación:
+`cita` conserva:
 
-`(cita.id_medico, cita.id_especialidad)`
+`id_especialidad`
 
-debe corresponder a una asociación válida existente en:
+porque un médico puede pertenecer a múltiples especialidades y la especialidad elegida constituye información propia de la cita.
+
+El médico se obtiene a través del horario:
+
+`cita.id_horario → horario.id_medico`
+
+Para una cita determinada debe cumplirse que:
+
+`(horario.id_medico, cita.id_especialidad)`
+
+corresponda a una asociación válida existente en:
 
 `medico_especialidad(id_medico, id_especialidad)`
 
-Relación lógica:
+Por tanto, la regla lógica es:
 
-`cita(id_medico, id_especialidad)`
+`cita.id_horario`
 
-→
+→ `horario.id_medico`
 
-`medico_especialidad(id_medico, id_especialidad)`
+junto con:
 
-Esto garantiza que una cita no pueda asociar un médico con una especialidad que no le corresponda.
+`cita.id_especialidad`
 
-La forma física de implementar la referencia se definirá posteriormente.
+→ asociación válida en `medico_especialidad`.
+
+La forma física concreta de garantizar esta regla se define en los pasos de integridad y diseño físico.
 
 ---
 
@@ -468,11 +547,11 @@ Si la cita se encuentra en estado Finalizada:
 
 `fecha_hora_inicio_atencion`
 
-y
+y:
 
 `fecha_hora_fin_atencion`
 
-deben estar registradas.
+deben encontrarse registradas.
 
 El fin de la atención debe ser posterior a su inicio.
 
@@ -522,9 +601,11 @@ no se requiere información de atención virtual.
 
 ### Incidentes
 
-Los incidentes continúan formando parte conceptualmente de `atencion_virtual`.
+Con el alcance aprobado, la información opcional del incidente continúa formando parte de `atencion_virtual`.
 
-La eventual normalización de incidentes como una entidad independiente será evaluada en el Paso 05.
+No se crea una entidad independiente mientras el modelo no requiera múltiples incidentes por una misma atención virtual.
+
+Si en una futura decisión se permiten múltiples incidentes históricos por atención, deberá reevaluarse una entidad `incidente_virtual`.
 
 ### Trazabilidad
 
@@ -609,9 +690,13 @@ RF-22, RN-23, RN-24, RN-25, RNF-18, D-12, D-20.
 
 ### Importante
 
-No se asignan valores arbitrarios a D-02, D-03 o D-04.
+No se asignan valores arbitrarios a:
 
-Permanecen pendientes hasta una decisión humana.
+- D-02;
+- D-03;
+- D-04.
+
+Estos valores permanecen pendientes hasta que exista una decisión aprobada.
 
 El valor de 15 minutos para inactividad de sesión se conserva porque está establecido como valor inicial configurable.
 
@@ -733,9 +818,9 @@ RF-21, RNF-05.
 | Relación | Cardinalidad | Implementación lógica |
 |---|---|---|
 | Paciente – Cita | 1:N | `cita.id_paciente` |
-| Médico – Cita | 1:N | `cita.id_medico` |
 | Médico – Horario | 1:N | `horario.id_medico` |
-| Horario – Cita | 1 : 0..1 activa | `cita.id_horario` + regla de no doble reserva |
+| Médico – Cita | 1:N | Indirecta: `cita.id_horario → horario.id_medico` |
+| Horario – Cita | 1 : 0..1 activa | `cita.id_horario` + regla de no doble reserva activa |
 | Especialidad – Cita | 1:N | `cita.id_especialidad` |
 | Médico – Especialidad | N:M | `medico_especialidad` |
 | Usuario – Paciente | 0..1 : 0..1 | `usuario.id_paciente` opcional y único |
@@ -756,10 +841,15 @@ RF-21, RNF-05.
 Toda cita debe estar asociada con:
 
 - un paciente;
-- un médico;
 - una especialidad;
 - un horario;
 - un usuario registrador.
+
+Además, toda cita tiene exactamente un médico responsable **derivado del horario seleccionado**.
+
+Ruta:
+
+`cita → horario → medico`
 
 ---
 
@@ -767,13 +857,28 @@ Toda cita debe estar asociada con:
 
 Todo médico debe encontrarse asociado al menos a una especialidad activa.
 
-La combinación médico–especialidad utilizada en una cita debe existir previamente en `medico_especialidad`.
+La especialidad seleccionada en una cita debe corresponder al médico propietario del horario.
+
+Debe cumplirse:
+
+`(horario.id_medico, cita.id_especialidad)`
+
+→ asociación existente en:
+
+`medico_especialidad(id_medico, id_especialidad)`
 
 ---
 
 ## 5.3 Horario del médico
 
-El horario seleccionado debe pertenecer al mismo médico registrado en la cita.
+El horario seleccionado determina el médico de la cita.
+
+No existe un segundo `id_medico` almacenado dentro de `cita`.
+
+Por tanto, no puede producirse una diferencia entre:
+
+- médico registrado en la cita;
+- médico propietario del horario.
 
 ---
 
@@ -781,13 +886,18 @@ El horario seleccionado debe pertenecer al mismo médico registrado en la cita.
 
 No pueden existir simultáneamente dos citas activas incompatibles para el mismo bloque de horario.
 
-La implementación concreta de esta regla no se define en el Paso 04.
+**No se establece una unicidad absoluta sobre `cita.id_horario`.**
 
-Se analizará posteriormente en:
+La conservación histórica debe permitir mantener referencias de:
 
-- integridad;
-- selección del SGBD;
-- transacciones y concurrencia.
+- citas canceladas;
+- citas reprogramadas;
+- citas finalizadas;
+- citas no asistidas;
+
+cuando corresponda.
+
+La implementación concreta de la exclusión de reservas activas incompatibles se define posteriormente en integridad y concurrencia.
 
 ---
 
@@ -795,7 +905,7 @@ Se analizará posteriormente en:
 
 Un paciente no puede mantener citas activas cuyos intervalos temporales se superpongan.
 
-El mecanismo técnico se definirá posteriormente.
+El mecanismo técnico se define en etapas posteriores.
 
 ---
 
@@ -833,9 +943,10 @@ Una reprogramación debe:
 
 - asignar un nuevo horario disponible;
 - liberar el horario anterior;
-- mantener consistencia de la operación completa.
+- mantener consistencia de la operación completa;
+- conservar el historial correspondiente.
 
-El mecanismo de transacción se definirá en el Paso 12.
+El mecanismo de transacción se define en el Paso 12.
 
 ---
 
@@ -896,7 +1007,7 @@ Los registros de auditoría relacionados también deben conservarse.
 | D-09 | Modalidad en Horario | Puede modificar estructura de `horario` | Pendiente |
 | D-10 | Permisos exactos de admisión | Rol/Permiso | Pendiente |
 | D-14 | Formatos de datos | Validaciones de Paciente, Médico y Usuario | Pendiente |
-| D-21 | Control de concurrencia | Reserva atómica | Pendiente para Paso 12 |
+| D-21 | Control de concurrencia | Reserva atómica | Tratado técnicamente en Paso 12 |
 
 ---
 
@@ -944,7 +1055,7 @@ Esto no resuelve D-09, ya que todavía debe decidirse si el horario también res
 | RF-13 | cita.estado |
 | RF-14 | paciente + cita |
 | RF-15 | paciente + cita |
-| RF-16 | medico + cita |
+| RF-16 | medico + horario + cita |
 | RF-17 | horario |
 | RF-18 | cita.modalidad |
 | RF-19 | atencion_virtual |
@@ -962,10 +1073,10 @@ Esto no resuelve D-09, ya que todavía debe decidirse si el horario también res
 | RNF-05 | RBAC mediante Usuario, Rol y Permiso |
 | RNF-06 | Usuario almacena únicamente credencial protegida |
 | RNF-07 | Parámetro de inactividad configurable |
-| RNF-11 | Regla de no doble reserva + atomicidad pendiente Paso 12 |
+| RNF-11 | Regla de no doble reserva + atomicidad |
 | RNF-17 | Observabilidad separada de auditoría |
 | RNF-18 | Conservación de auditoría ≥ período definido |
-| RNF-01/02/03 | Se evaluarán posteriormente mediante diseño físico y rendimiento |
+| RNF-01/02/03 | Se evalúan mediante diseño físico y rendimiento |
 | RNF-08/09/10 | Corresponden a infraestructura, respaldo y recuperación |
 | RNF-13/14/15 | Corresponden principalmente a interfaz y accesibilidad |
 | RNF-19 | No altera directamente el modelo lógico |
@@ -978,7 +1089,7 @@ La observabilidad técnica continúa fuera del conjunto de tablas de dominio.
 
 Debe mantenerse separada de `registro_auditoria`.
 
-La observabilidad puede registrar posteriormente eventos como:
+La observabilidad puede registrar eventos como:
 
 - errores de aplicación;
 - fallos de autenticación;
@@ -986,16 +1097,15 @@ La observabilidad puede registrar posteriormente eventos como:
 - fallas en operaciones críticas;
 - eventos técnicos relevantes.
 
-Su mecanismo concreto de persistencia se determinará en una etapa posterior.
+Su mecanismo concreto de persistencia corresponde a etapas técnicas posteriores.
 
 ---
 
-# 11. Aspectos deliberadamente no definidos
+# 11. Aspectos deliberadamente no definidos en el modelo lógico
 
-En este Paso 04 no se definen:
+En este modelo lógico no se definen:
 
-- tipos físicos del SGBD;
-- tamaños definitivos de columnas;
+- tamaños físicos definitivos de columnas;
 - `AUTO_INCREMENT`;
 - `IDENTITY`;
 - `SEQUENCE`;
@@ -1010,38 +1120,43 @@ En este Paso 04 no se definen:
 - particionamiento;
 - compresión;
 - sintaxis SQL;
-- acciones físicas `ON DELETE`;
-- características propias de PostgreSQL;
-- características propias de MySQL/MariaDB;
-- características propias de SQL Server.
+- acciones físicas concretas `ON DELETE`;
+- características exclusivas de PostgreSQL;
+- características exclusivas de MySQL/MariaDB;
+- características exclusivas de SQL Server.
 
 Estos elementos corresponden a pasos posteriores del workflow.
 
 ---
 
-# 12. Preparación para el Paso 05 — Normalización
+# 12. Resultado de la normalización incorporado
 
-El presente modelo **no afirma todavía que todas las tablas estén en 3FN o BCNF**.
+El Paso 05 determinó la dependencia:
 
-La siguiente etapa deberá revisar formalmente:
+`id_horario → id_medico`
 
-- Primera Forma Normal (1FN);
-- Segunda Forma Normal (2FN);
-- Tercera Forma Normal (3FN);
-- Forma Normal de Boyce-Codd (BCNF), cuando corresponda.
+Debido a que `cita` contenía anteriormente ambos atributos, se producía:
 
-La revisión deberá prestar especial atención a:
+`id_cita → id_horario → id_medico`
 
-- atributos de `horario`;
-- posible redundancia entre `horario` y la fecha/hora programada de `cita`;
-- representación de incidentes en `atencion_virtual`;
-- estructura de `parametros_configuracion`;
-- relaciones asociativas;
-- dependencias funcionales;
-- atributos derivados;
-- posibles redundancias.
+Para evitar esta dependencia transitiva se elimina:
 
-Cualquier desnormalización deberá justificarse posteriormente mediante requisitos funcionales, no funcionales o patrones de acceso.
+`cita.id_medico`
+
+El médico de la cita se deriva mediante:
+
+`cita.id_horario → horario.id_medico`
+
+## Resultado
+
+Con esta corrección:
+
+- `cita` conserva `id_especialidad`;
+- `cita` conserva `id_horario`;
+- `cita` ya no almacena `id_medico`;
+- el médico se obtiene a través de `horario`;
+- no se crea una nueva tabla;
+- se mantienen las 14 tablas del modelo.
 
 ---
 
@@ -1073,11 +1188,11 @@ El modelo contiene **14 tablas lógicas**.
 
 ---
 
-# 14. Conclusiones del Paso 04
+# 14. Conclusiones del Paso 04 actualizado
 
 1. El modelo conceptual fue transformado en un modelo lógico relacional.
 
-2. Se identificaron 14 tablas lógicas.
+2. Se mantienen **14 tablas lógicas**.
 
 3. Se resolvieron las relaciones N:M de Usuario–Rol y Rol–Permiso mediante tablas asociativas.
 
@@ -1091,60 +1206,106 @@ El modelo contiene **14 tablas lógicas**.
 
 8. Las modificaciones posteriores se trazan mediante `registro_auditoria`.
 
-9. La combinación Médico–Especialidad utilizada en una cita debe existir en `medico_especialidad`.
+9. La normalización del Paso 05 determinó que `cita.id_medico` era redundante.
 
-10. La regla Horario–Cita se mantiene como máximo una reserva activa incompatible por bloque, sin imponer todavía una restricción física que impida conservar citas históricas.
+10. `cita.id_medico` fue eliminado del modelo lógico.
 
-11. D-08 y D-09 continúan pendientes y no se materializan mediante columnas provisionales.
+11. El médico de una cita se obtiene mediante:
 
-12. Los valores pendientes de D-02, D-03 y D-04 no se inventan.
+   `cita.id_horario → horario.id_medico`.
 
-13. No se selecciona ningún SGBD.
+12. La especialidad seleccionada permanece almacenada en `cita`.
 
-14. No se genera SQL.
+13. La coherencia Médico–Especialidad se valida mediante:
 
-15. No se afirma todavía que el modelo se encuentre en 3FN o BCNF, ya que dicha revisión corresponde al Paso 05.
+   `(horario.id_medico, cita.id_especialidad)`
+
+   contra:
+
+   `medico_especialidad(id_medico, id_especialidad)`.
+
+14. La regla Horario–Cita continúa siendo máximo una reserva activa incompatible por bloque.
+
+15. **No se impone unicidad absoluta sobre `id_horario`**, porque debe conservarse el historial.
+
+16. D-08 y D-09 continúan pendientes.
+
+17. D-02, D-03 y D-04 permanecen como parámetros configurables pendientes y no reciben valores arbitrarios.
+
+18. El modelo continúa conceptualmente independiente del mecanismo físico concreto utilizado para implementar las restricciones.
 
 ---
 
-# 15. Resultado del Paso 04
+# 15. Resultado del Paso 04 corregido
 
 **Agente utilizado:** `database-engineer`  
 **Skill utilizado:** `database-schema-designer`  
 **Ruta del skill:** `.agents/skills/database-schema-designer/SKILL.md`
 
-**Archivo generado:**
+**Archivo:**
 
 `proyecto/base_datos/03_modelo_logico/modelo_logico.md`
 
-**Paso:**
+**Paso de origen:**
 
 `Paso 04 — Modelo lógico`
 
+**Corrección posterior:**
+
+Propagación de la normalización establecida en el Paso 05 y del hallazgo bloqueante detectado durante el Paso 14 — Revisión DBA.
+
+**Cambio principal:**
+
+Eliminar:
+
+`cita.id_medico`
+
+y utilizar:
+
+`cita.id_horario → horario.id_medico`
+
+para determinar el médico correspondiente.
+
 **Estado:**
 
-Paso 04 completado y pendiente de validación humana.
-
-**Siguiente paso:**
-
-`Paso 05 — Normalización`
-
-**Salida esperada del siguiente paso:**
-
-`proyecto/base_datos/04_normalizacion/informe_normalizacion.md`
+Corregido manualmente y pendiente de nueva revisión DBA.
 
 ---
 
 # 16. Control de avance
 
-La finalización de este documento **no autoriza automáticamente el Paso 05**.
+Esta corrección **no autoriza automáticamente el Paso 15 — Generación SQL**.
 
-Antes de continuar debe realizarse validación humana del modelo lógico.
+El cambio debe propagarse también a los artefactos posteriores que todavía dependan de:
 
-No se genera SQL.
+`cita.id_medico`
 
-No se selecciona SGBD.
+incluyendo:
 
-No se ejecuta normalización en este paso.
+- modelo físico;
+- integridad;
+- seguridad, si existen políticas dependientes;
+- auditoría e histórico;
+- índices y rendimiento;
+- transacciones y concurrencia;
+- migraciones.
 
-**DETENERSE y esperar aprobación humana.**
+Después de corregir los artefactos afectados debe repetirse:
+
+`Paso 14 — Revisión DBA`
+
+El resultado deberá ser nuevamente:
+
+- `STATUS: APPROVED`;
+- `STATUS: CHANGES_REQUIRED`;
+- o `STATUS: REJECTED`.
+
+Solo un:
+
+`STATUS: APPROVED`
+
+permitirá preparar el Paso 15.
+
+**NO generar SQL todavía.**
+
+**DETENERSE y esperar nueva validación DBA.**

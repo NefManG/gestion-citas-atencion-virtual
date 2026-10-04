@@ -1,464 +1,1520 @@
 # Informe de Seguridad — Paso 09
 
-**Sistema:** Sistema de Gestión de Citas y Atención Virtual — Hospital Boliviano Español
-**Generado:** Paso 09 — Seguridad
-**Agente utilizado:** `database-engineer` (skill `databases` + `security-reviewer`)
-**Workflow:** `02_database_workflow`
-**DBMS:** PostgreSQL 18.6
-**Fuentes principales:** `modelo_fisico.md`, `06_integridad/integridad.md`, skill `databases`
-**Estado:** Pendiente de validación humana
+**Sistema:** Sistema de Gestión de Citas y Atención Virtual — Hospital Boliviano Español  
+**Generado:** Paso 09 — Seguridad  
+**Agente utilizado:** `database-engineer`  
+**Skill utilizado:** `databases` + `security-reviewer`  
+**Workflow:** `02_database_workflow`  
+**DBMS:** PostgreSQL  
+**Fuentes principales:** `modelo_fisico.md`, `06_integridad/integridad.md`, requisitos de seguridad del sistema  
+**Estado:** Corregido manualmente después del Paso 14 — Revisión DBA. Pendiente de nueva validación DBA.
 
 ---
 
-## 1. Objetivo del Paso 09
+# 1. Objetivo del Paso 09
 
-Implementar y documentar la **configuración de seguridad completa** para PostgreSQL 18.6 en el contexto de un sistema hospitalario público con manejo de datos de salud (PHI). Este paso cubre:
+Definir y documentar la estrategia de seguridad para la base de datos PostgreSQL del Sistema de Gestión de Citas y Atención Virtual.
 
-- Autenticación moderna (SCRAM-SHA-256)
-- Cifrado en tránsito (TLS) y en reposo
-- Políticas de Nivel de Fila (RLS) por rol/paciente
-- Auditoría con pgAudit
-- Gestión de roles y permisos RBAC
-- Configuración de connection pooler (PgBouncer)
-- Hardening del servidor PostgreSQL
-- Cumplimiento de normativas de salud
+Este paso contempla:
 
-**Salida:** `proyecto/base_datos/07_seguridad/seguridad.md`
+- autenticación segura del DBMS;
+- separación entre usuarios de aplicación y usuarios de PostgreSQL;
+- cifrado en tránsito;
+- protección de credenciales;
+- control de acceso mediante RBAC;
+- Row-Level Security (RLS);
+- auditoría técnica;
+- endurecimiento básico del servidor;
+- gestión segura de secretos;
+- seguridad de conexiones;
+- integración con PgBouncer;
+- protección de los datos del paciente.
 
-DETENERSE y esperar aprobación humana.
+Este documento no significa que la infraestructura ya se encuentre desplegada.
 
----
-
-## 2. Arquitectura de Seguridad del Sistema
-
-```
-+---------------------+       +----------------------+
-|  Cliente / App      | <---> |  PgBouncer (pooler)  |
-+---------------------+       +----------------------+
-         |                              |
-         | SSL/TLS 1.2+                 | hostssl + scram-sha-256
-         v                              v
-+---------------------+       +----------------------+
-|  PostgreSQL 18.6    |       |  pg_hba.conf         |
-|  + pgAudit         |<----->|  + rls policies      |
-|  + pgcrypto         |       |  + roles/permissions |
-|  + encryption       |       +----------------------+
-+---------------------+
-```
+Las configuraciones aquí descritas deben aplicarse y validarse durante el despliegue correspondiente.
 
 ---
 
-## 3. Autenticación y Acceso
+# 2. Principios de seguridad
 
-### 3.1 Configuración `pg_hba.conf` (PostgreSQL-Specific)
+Se aplican los siguientes principios:
 
-```
-# TYPE  DATABASE  USER  ADDRESS  METHOD
-# Conexiones locales (UNIX socket)
-local   all             all                                     peer
-# Conexiones remotas (TCP/IP)
-host    all             all             127.0.0.1/32    scram-sha-256
-host    all             all             ::1/128        scram-sha-256
-host    all             all             10.0.0.0/8      scram-sha-256
-host    all             all             192.168.0.0/16  scram-sha-256
-# Solo acceso vía PgBouncer (sin hostssl directo)
-host    all             all             0.0.0.0/0       mdc512
-# Conexiones con SSL forzado (solo app → PG directamente)
-hostssl all             all             10.0.0.0/8      scram-sha-256 hostnossl
-hostssl all             all             192.168.0.0/16  scram-sha-256 hostnossl
-```
-
-### 3.2 Autenticación SCRAM-SHA-256
-
-- **Ninguna contraseña `trust` en producción** (RF-21, RNF-05).
-- Las contraseñas se almacenan como `password_hash` en la tabla `usuario` (bcrypt/Argon2 en la aplicación, nunca texto plano).
-- El `password_hash` en la BD es solo para que PostgreSQL valide el SCRAM-SHA-256 durante el login.
-- **Migración segura**: Cuando un usuario cambia su contraseña por la app, se actualiza `password_hash` en la tabla `usuario` y la entrada del rol de PG se actualiza automáticamente.
-
-### 3.3 Roles de Base de Datos
-
-```sql
--- Roles de aplicación (no superusuario)
-CREATE ROLE app_login WITH LOGIN PASSWORD 'cambiar_por_env' LOGIN VIA pgbouncer;
-CREATE ROLE app_read  WITH LOGIN NOCREATEDB NOCREATEROLE INHERIT; -- solo lecturas
-CREATE ROLE app_write WITH LOGIN NOCREATEDB NOCREATEROLE INHERIT; -- escrituras controladas
-CREATE ROLE app_admin WITH LOGIN NOCREATEDB NOCREATEROLE INHERIT; -- DBA tasks
-
--- Roles de aplicación (con contraseñas gestionadas por app, no por PG)
--- Las credenciales se pasan vía conexión, no se almacenan en scripts
-
--- Roles operativos (solo para tareas de mantenimiento)
-CREATE ROLE dba_admin WITH LOGIN SUPERUSER INHERIT;
-```
-
-### 3.4 Niveles de acceso por rol (RLS)
-
-| Rol | Tabla(s) | Política RLS | Justificación |
-|-----|----------|--------------|---------------|
-| `paciente` | `cita`, `atencion_virtual`, `registro_auditoria` | `politica_paciente`: `id_paciente = current_setting('app.current_paciente_id')::bigint` | Acceso exclusivo a sus propios datos (RN-14, RN-16) |
-| `medico` | `cita`, `horario` | `politica_medico`: `id_medico = current_setting('app.current_medico_id')::bigint` | Acceso a citas/horarios de su consulta (RN-15) |
-| `administracion` | Todas | Política completa con filtro por `id_usuario` | Gestión administrativa (RN-17, RF-21) |
-| `admin` | `parametros_configuracion`, `rol`, `permiso` | Sin RLS (solo superusuario) | Configuración del sistema (D-10) |
+1. mínimo privilegio;
+2. separación de responsabilidades;
+3. credenciales nunca almacenadas en texto plano;
+4. secretos fuera del repositorio;
+5. conexiones cifradas;
+6. defensa en profundidad;
+7. trazabilidad de operaciones;
+8. aislamiento de datos por usuario y rol;
+9. separación entre autenticación de aplicación y autenticación del DBMS;
+10. conservación segura de auditoría.
 
 ---
 
-## 4. Políticas de Nivel de Fila (RLS) Implementadas
+# 3. Separación entre autenticación de aplicación y PostgreSQL
 
-### 4.1 RLS en tabla `cita`
+Es importante diferenciar dos tipos de identidad.
 
-```sql
--- Habilitar RLS
-ALTER TABLE cita ENABLE ROW LEVEL SECURITY;
+## 3.1 Usuario de la aplicación
 
--- Política: paciente ve solo sus citas
-CREATE POLICY politica_cita_paciente ON cita
-    USING (id_paciente = current_setting('app.current_paciente_id')::bigint);
+La tabla:
 
--- Política: médico ve citas de su especialidad/horario
-CREATE POLICY politica_cita_medico ON cita
-    USING (id_medico = current_setting('app.current_medico_id')::bigint);
+`usuario`
 
--- Política: admin/admisión ve todas (con auditoría)
-CREATE POLICY politica_cita_admin ONcita
-    USING (current_setting('app.user_role')::text = 'admin');
-```
+representa a las personas que utilizan el sistema.
 
-> **Importante:** `current_setting('app.current_paciente_id')` debe establecerse al iniciar cada conexión en la aplicación (connection hook), nunca confiar en el rol de BD solo.
+Ejemplos:
 
-### 4.2 RLS en tabla `atencion_virtual`
+- paciente;
+- médico;
+- personal de admisión;
+- administrador.
 
-```sql
-ALTER TABLE atencion_virtual ENABLE ROW LEVEL SECURITY;
+La autenticación de estos usuarios ocurre en la aplicación.
 
--- Acceso condicional: solo si la cita es virtual
-CREATE POLICY politica_atencion_virtual ON atencion_virtual
-    USING (TRUE); -- Acceso condicional validado en aplicación + trigger en cita
-```
+La tabla almacena:
 
-### 4.3 RLS en tabla `registro_auditoria`
+`password_hash`
 
-```sql
-ALTER TABLE registro_auditoria ENABLE ROW LEVEL SECURITY;
+y nunca la contraseña original.
 
--- Solo personal autorizado puede leer auditoría (no pacientes)
-CREATE POLICY politica_auditoria_lectura ON registro_auditoria
-    FOR SELECT
-    USING (current_setting('app.user_role')::text IN ('admin', 'dba_admin'));
-
--- Solo el usuario responsable o admin puede insertar
-CREATE POLICY politica_auditoria_insercion ON registro_auditoria
-    FOR INSERT
-    WITH CHECK (id_usuario_responsable = current_setting('app.current_user_id')::bigint);
-```
-
-### 4.4 RLS en tabla `horario`
-
-```sql
-ALTER TABLE horario ENABLE ROW LEVEL SECURITY;
-
--- Médico solo ve sus propios horarios
-CREATE POLICY politica_horario_medico ON horario
-    USING (id_medico = current_setting('app.current_medico_id')::bigint);
-```
+El hash debe ser generado mediante un algoritmo apropiado para contraseñas desde la capa de aplicación.
 
 ---
 
-## 5. Cifrado de Datos
+## 3.2 Roles de PostgreSQL
 
-### 5.1 Cifrado en tránsito (TLS)
+PostgreSQL mantiene sus propias credenciales y roles internos.
 
-- **Configuración obligatoria en `postgresql.conf`:**
-  ```
-  ssl = on
-  ssl_cert_file = '/etc/postgresql/18/main/server.crt'
-  ssl_key_file = '/etc/postgresql/18/main/server.key'
-  ssl_ca_file = '/etc/postgresql/18/main/root.crt'
-  ssl_crl_file = '/etc/postgresql/18/main/server.crl'
-  ssl_renegotiation_limit = 524288
-  ssl_timeout = 300s
-  ```
-- **`pg_hba.conf`**: Solo `hostssl` (no `host`), `requirepgpass` desactivado.
-- **TLS 1.2+** solo — desactivar TLS 1.0/1.1.
-- **Certificate pinning** para clientes críticos.
+Estas credenciales sirven para:
 
-### 5.2 Cifrado en reposo
+- conexión de la aplicación;
+- administración;
+- migraciones;
+- backup;
+- monitoreo.
 
-- **No TDE nativo en PostgreSQL 18.6** (solo en ediciones comerciales con parches).
-- **Recomendación:** Cifrado a nivel de sistema de archivos (LVM, ZFS, BitLocker en Windows, dm-crypt en Linux).
-- **Alternativa PG:** Extensión `pgcrypto` para cifrar columnas sensibles (passwords, datos PHI extra).
+Las credenciales de PostgreSQL **no son iguales** a:
 
-```sql
--- Ejemplo: Cifrar campo de observaciones sensibles
-ALTER TABLE cita ADD COLUMN observaciones_secure TEXT;
+`usuario.password_hash`.
 
--- Función para cifrar/descifrar (usando pgcrypto)
-CREATE OR REPLACE FUNCTION fn_encrypt_observaciones(texto TEXT)
-RETURNS TEXT AS $$
-DECLARE
-    key_bytes BYTEA := decode(current_setting('app.encryption_key'), 'hex');
-BEGIN
-    RETURN encode(pgp_sym_encrypt(texto, key_bytes), 'base64');
-END;
-$$ LANGUAGE plpgsql;
+Por tanto:
 
-CREATE OR REPLACE FUNCTION fn_decrypt_observaciones(texto_base64 TEXT)
-RETURNS TEXT AS $$
-DECLARE
-    key_bytes BYTEA := decode(current_setting('app.encryption_key'), 'hex');
-BEGIN
-    RETURN pgp_sym_decrypt(decode(texto_base64, 'base64'), key_bytes)::text;
-END;
-$$ LANGUAGE plpgsql;
+> PostgreSQL no autentica directamente a cada paciente o médico utilizando la tabla `usuario`.
 
--- Aplicar a columna existente
-UPDATE cita SET observaciones_secure = fn_encrypt_observaciones(observaciones)
-WHERE observaciones IS NOT NULL;
-```
-
-> **Nota RNF-07:** Las claves de cifrado deben gestionarse vía KMS/HSM, nunca en `postgresql.conf` en producción. `current_setting('app.encryption_key')` se inyecta al iniciar la conexión.
+La aplicación se conecta mediante una cuenta técnica controlada y posteriormente establece el contexto del usuario dentro de cada transacción.
 
 ---
 
-## 6. Auditoría con pgAudit
+# 4. Autenticación de PostgreSQL
 
-### 6.1 Extensión pgAudit (v3.3+ compatible PG18)
+## 4.1 Método
 
-```sql
--- Habilitar extensión en base de datos del sistema
-CREATE EXTENSION IF NOT EXISTS pgaudit WITH SCHEMA pg_catalog;
+Para conexiones autenticadas se utilizará:
 
--- Configurar niveles de logging
-ALTER SYSTEM SET pgaudit.log = 'ddl, misrole, session, unsigned';
-ALTER SYSTEM SET pgaudit.log_catalog = 'on';
-ALTER SYSTEM SET pgaudit.log_parameter_never = 'password';
-ALTER SYSTEM SET pgaudit.log_parameter_always = 'on'; -- para parámetros sensibles
+`scram-sha-256`.
 
--- Reiniciar PostgreSQL para aplicar
-SELECT pg_reload_conf();
-```
+No se utilizará en producción:
 
-### 6.2 Tipos de log de pgAudit
-
-| Valor pgaudit.log | Descripción |
-|-------------------|-------------|
-| `ddl` | Comandos CREATE, ALTER, DROP |
-| `misrole` | Cambios de roles/permisos |
-| `session` | Inicios/terminos de sesión, usuario, DB |
-| `unsigned` | Consultas sin firma (potenciales inyecciones) |
-
-**Ejemplo de salida en logs:**
-```
-2026-10-02 14:32:15.482 pgaudit: pgaudit.role_select=1 pgaudit.table_name=cita pgaudit.command=INSERT pgaudit.schema=public pgaudit.user_id=1056 pgaudit.session_id=8392
-```
-
-### 6.3 Integración SIEM
-
-- **Formato JSON estructurado** para log forwarder (Fluentd, Filebeat, etc.).
-- **Filtrado por:** `pgaudit.user_id`, `pgaudit.session_id`, `pgaudit.command`.
-- **Alertas:** INSERT/UPDATE/DELETE en `cita` fuera de horas hábiles, múltiples fallos de login, cambios de roles.
+- `trust`;
+- contraseñas en texto plano;
+- métodos de autenticación obsoletos.
 
 ---
 
-## 7. Gestión de Roles y Permisos RBAC
+## 4.2 password_encryption
 
-### 7.1 Roles semilla (datos iniciales)
-
-```sql
--- Insertar roles (únicos, D-10 alcance limitado)
-INSERT INTO rol (nombre, descripcion) VALUES
-    ('paciente', 'Usuario paciente del sistema'),
-    ('medico', 'Profesional médico con consulta'),
-    ('admision', 'Personal de admisión y registro'),
-    ('admin', 'Administrador del sistema hospitalario');
-
--- Insertar permisos base (D-10, alcance a definir)
-INSERT INTO permiso (nombre, descripcion, recurso, accion) VALUES
-    ('crear_cita', 'Crear nueva cita', 'cita', 'crear'),
-    ('leer_cita', 'Ver citas', 'cita', 'leer'),
-    ('actualizar_cita', 'Modificar cita', 'cita', 'actualizar'),
-    ('cancelar_cita', 'Cancelar cita', 'cita', 'eliminar'), -- mapeado a 'eliminar' en app
-    ('ver_atencion_virtual', 'Ver información virtual', 'atencion_virtual', 'leer'),
-    ('gestionar_parametros', 'Configurar parámetros', 'parametros_configuracion', 'actualizar'),
-    ('auditoría_lectura', 'Leer logs de auditoría', 'registro_auditoria', 'leer');
-```
-
-### 7.2 Asignación de roles a usuarios
-
-```sql
--- Asignar rol paciente a usuario
-INSERT INTO usuario_rol (id_usuario, id_rol, fecha_asignacion)
-    SELECT id_usuario, (SELECT id_rol FROM rol WHERE nombre = 'paciente'),
-           now()
-    FROM usuario WHERE username = 'juan.paciente';
-
--- Asignar rol médico a usuario
-INSERT INTO usuario_rol (id_usuario, id_rol, fecha_asignacion)
-    SELECT id_usuario, (SELECT id_rol FROM rol WHERE nombre = 'medico'),
-           now()
-    FROM usuario WHERE username = 'dra.sanchez';
-
--- Asignar permisos por rol
-INSERT INTO rol_permiso (id_rol, id_permiso) VALUES
-    ((SELECT id_rol FROM rol WHERE nombre = 'paciente'),
-     (SELECT id_permiso FROM permiso WHERE nombre = 'leer_cita')),
-    ((SELECT id_rol FROM rol WHERE nombre = 'medico'),
-     (SELECT id_permiso FROM permiso WHERE nombre IN ('crear_cita', 'leer_cita', 'actualizar_cita', 'cancelar_cita', 'ver_atencion_virtual'))),
-    ((SELECT id_rol FROM rol WHERE nombre = 'admision'),
-     (SELECT id_permiso FROM permiso WHERE nombre IN ('crear_cita', 'leer_cita', 'actualizar_cita'))),
-    ((SELECT id_rol FROM rol WHERE nombre = 'admin'),
-     (SELECT id_permiso FROM permiso WHERE nombre IN ('gestionar_parametros', 'auditoría_lectura')));
-```
-
-### 7.3 Políticas de contraseña y bloques
-
-- **`password_authen`** en `pg_hba.conf`: `scram-sha-256` (predeterminado PG18).
-- **Bloqueo automático** después de N intentos fallidos (controlado por la aplicación, no por BD):
-  - `intentos_fallidos` en tabla `usuario` controla el bloqueo.
-  - La aplicación incrementa este contador y bloquea el login cuando reaches el umbral.
-- **`idle_in_transaction_session_timeout`**: 180s (para liberar conexiones varadas).
-- **`statement_timeout`**: 60s por rol (evita queries colgantes).
-
----
-
-## 8. Configuración de Connection Pooler (PgBouncer)
-
-### 8.1 `pgbouncer.ini` (versión 1.25.2)
-
-```
-[max client connections]
-  1000
-
-[default_pool_size]
-  20
-  reserve_pool_size = 5
-
-[auth_type]
-  scram-sha-256
-
-[auth_user_domain]
-  true
-
-[passthrough]
-  auth_query = SELECT u.password_hash, u.activo, u.id_rol
-                 FROM usuario u WHERE u.username = current_user();
-
-[pool_mode]
-  transaction
-
-[serve_sql]
-  query_timeout = 300
-
-[logging]
-  syslog = 0
-  logfile = /var/log/pgbouncer.log
-  verbose = 1
-```
-
-### 8.2 Consideraciones críticas
-
-- **Modo transaction:** Cada transacción de la aplicación obtiene una conexión del pool, luego la devuelve. Ideal para aplicaciones web con transacciones cortas.
-- **Modo statement:** Cada comando SQL obtiene y suelta conexión. Más overhead, pero necesario para transacciones largas.
-- **`auth_query`:** Valida credenciales contra la tabla `usuario` (password_hash validado por SCRAM-SHA-256).
-- **`server_reset_query`:** `DISCARD ALL` (por defecto en modo transaction).
-- **Health check:** `SELECT 1` vía `ping` endpoint.
-
----
-
-## 9. Hardening Adicional del Servidor
-
-### 9.1 `postgresql.conf` — Parámetros de seguridad
+Configuración:
 
 ```conf
-# Evitar información reveladora en errores
-log_error_verbosity = DEFAULT
-log_min_duration_statement = 0  # Loguear todas las queries (luego filtrar)
-log_min_error_statement = ERROR
+password_encryption = 'scram-sha-256'
+```
 
-# Tiempo de sesión inactiva
+Las contraseñas de los roles técnicos de PostgreSQL deben proporcionarse mediante gestión segura de secretos.
+
+No deben escribirse directamente dentro de:
+
+- scripts versionados;
+- repositorios Git;
+- documentación;
+- archivos públicos.
+
+---
+
+# 5. pg_hba.conf
+
+El archivo original contenía:
+
+```text
+mdc512
+```
+
+Este valor era un error tipográfico y no corresponde a un método válido de autenticación.
+
+La configuración corregida debe utilizar conexiones TLS y SCRAM.
+
+Ejemplo base:
+
+```conf
+# TYPE       DATABASE        USER            ADDRESS             METHOD
+
+# Administración local mediante socket del sistema
+local        all             all                                 peer
+
+# Conexiones internas cifradas
+hostssl      all             all             10.0.0.0/8          scram-sha-256
+hostssl      all             all             192.168.0.0/16      scram-sha-256
+
+# Loopback cifrado cuando corresponda
+hostssl      all             all             127.0.0.1/32        scram-sha-256
+hostssl      all             all             ::1/128             scram-sha-256
+
+# Rechazar conexiones TCP sin TLS
+hostnossl    all             all             0.0.0.0/0           reject
+hostnossl    all             all             ::0/0               reject
+```
+
+## Importante
+
+En producción deben reemplazarse las redes amplias por:
+
+- la red real de aplicación;
+- la red de PgBouncer;
+- la red administrativa autorizada.
+
+No se recomienda exponer PostgreSQL directamente a Internet.
+
+---
+
+# 6. Cifrado en tránsito
+
+PostgreSQL debe utilizar TLS.
+
+Configuración base:
+
+```conf
+ssl = on
+
+ssl_cert_file = '/etc/postgresql/server.crt'
+ssl_key_file  = '/etc/postgresql/server.key'
+ssl_ca_file   = '/etc/postgresql/root.crt'
+
+ssl_min_protocol_version = 'TLSv1.2'
+```
+
+Las conexiones remotas deben utilizar:
+
+`hostssl`
+
+en `pg_hba.conf`.
+
+La aplicación debe validar correctamente el certificado del servidor.
+
+---
+
+# 7. Roles técnicos de PostgreSQL
+
+Se separan los permisos mediante roles técnicos.
+
+## 7.1 Roles sin LOGIN
+
+```sql
+CREATE ROLE app_read
+NOLOGIN
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE;
+
+CREATE ROLE app_write
+NOLOGIN
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE;
+
+CREATE ROLE app_admin
+NOLOGIN
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE;
+```
+
+Estos roles agrupan privilegios.
+
+---
+
+## 7.2 Usuario técnico de aplicación
+
+La aplicación debe utilizar un rol técnico con `LOGIN`.
+
+Ejemplo conceptual:
+
+```sql
+CREATE ROLE app_runtime
+LOGIN
+NOSUPERUSER
+NOCREATEDB
+NOCREATEROLE;
+```
+
+La contraseña **no debe aparecer en este archivo**.
+
+Debe suministrarse mediante:
+
+- variable de entorno;
+- gestor de secretos;
+- mecanismo seguro equivalente.
+
+Los privilegios necesarios se conceden mediante:
+
+```sql
+GRANT app_read TO app_runtime;
+GRANT app_write TO app_runtime;
+```
+
+---
+
+# 8. Cuenta administrativa
+
+La cuenta DBA no debe utilizarse por la aplicación.
+
+Debe existir una identidad administrativa independiente para:
+
+- mantenimiento;
+- migraciones autorizadas;
+- recuperación;
+- operaciones DBA.
+
+Las credenciales administrativas se gestionan fuera del repositorio.
+
+No se recomienda mantener una sentencia con contraseña administrativa dentro de scripts versionados.
+
+---
+
+# 9. RBAC de aplicación
+
+El sistema mantiene el RBAC mediante:
+
+- `usuario`;
+- `rol`;
+- `permiso`;
+- `usuario_rol`;
+- `rol_permiso`.
+
+Roles conceptuales:
+
+- paciente;
+- medico;
+- admision;
+- admin.
+
+D-10 continúa pendiente respecto del alcance exacto de los permisos de admisión.
+
+---
+
+# 10. Row-Level Security
+
+RLS se utilizará para reforzar el aislamiento de información.
+
+Tablas principales:
+
+```sql
+ALTER TABLE paciente
+ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE medico
+ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE horario
+ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cita
+ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE atencion_virtual
+ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE registro_auditoria
+ENABLE ROW LEVEL SECURITY;
+```
+
+---
+
+# 11. Contexto del usuario de aplicación
+
+La aplicación debe establecer dentro de cada transacción información contextual como:
+
+```text
+app.current_user_id
+app.current_paciente_id
+app.current_medico_id
+app.current_role
+```
+
+Ejemplo:
+
+```sql
+SET LOCAL app.current_user_id = '123';
+SET LOCAL app.current_paciente_id = '45';
+SET LOCAL app.current_role = 'paciente';
+```
+
+## Importante con PgBouncer
+
+Cuando PgBouncer utiliza:
+
+`pool_mode = transaction`
+
+el estado de sesión no debe suponerse persistente entre transacciones.
+
+Por esta razón, los valores:
+
+`app.current_*`
+
+deben establecerse mediante:
+
+`SET LOCAL`
+
+al inicio de **cada transacción** protegida.
+
+No debe dependerse de un valor configurado únicamente al abrir una conexión.
+
+---
+
+# 12. RLS para citas del paciente
+
+```sql
+CREATE POLICY politica_cita_paciente
+ON cita
+FOR SELECT
+TO app_runtime
+USING (
+    id_paciente =
+    current_setting(
+        'app.current_paciente_id',
+        TRUE
+    )::BIGINT
+);
+```
+
+Esto permite que el paciente consulte únicamente sus propias citas.
+
+Fuente:
+
+RN-14.
+
+---
+
+# 13. RLS para citas del médico
+
+La versión anterior utilizaba:
+
+```text
+cita.id_medico
+```
+
+pero esa columna fue eliminada durante la normalización.
+
+El médico de una cita se obtiene mediante:
+
+`cita.id_horario → horario.id_medico`.
+
+La política corregida es:
+
+```sql
+CREATE POLICY politica_cita_medico
+ON cita
+FOR SELECT
+TO app_runtime
+USING (
+    EXISTS (
+        SELECT 1
+        FROM horario h
+        WHERE h.id_horario = cita.id_horario
+          AND h.id_medico =
+              current_setting(
+                  'app.current_medico_id',
+                  TRUE
+              )::BIGINT
+    )
+);
+```
+
+Fuente:
+
+RN-15.
+
+---
+
+# 14. RLS para horario
+
+```sql
+CREATE POLICY politica_horario_medico
+ON horario
+FOR SELECT
+TO app_runtime
+USING (
+    id_medico =
+    current_setting(
+        'app.current_medico_id',
+        TRUE
+    )::BIGINT
+);
+```
+
+Un médico solo debe consultar sus propios horarios salvo privilegio administrativo.
+
+---
+
+# 15. RLS de paciente
+
+```sql
+CREATE POLICY politica_paciente_propio
+ON paciente
+FOR SELECT
+TO app_runtime
+USING (
+    id_paciente =
+    current_setting(
+        'app.current_paciente_id',
+        TRUE
+    )::BIGINT
+);
+```
+
+---
+
+# 16. RLS de atención virtual
+
+`atencion_virtual` no debe utilizar:
+
+```sql
+USING (TRUE)
+```
+
+para pacientes o médicos porque permitiría acceso excesivo.
+
+El acceso debe comprobar la cita relacionada.
+
+## Paciente
+
+```sql
+CREATE POLICY politica_av_paciente
+ON atencion_virtual
+FOR SELECT
+TO app_runtime
+USING (
+    EXISTS (
+        SELECT 1
+        FROM cita c
+        WHERE c.id_cita = atencion_virtual.id_cita
+          AND c.id_paciente =
+              current_setting(
+                  'app.current_paciente_id',
+                  TRUE
+              )::BIGINT
+    )
+);
+```
+
+## Médico
+
+```sql
+CREATE POLICY politica_av_medico
+ON atencion_virtual
+FOR SELECT
+TO app_runtime
+USING (
+    EXISTS (
+        SELECT 1
+        FROM cita c
+        JOIN horario h
+          ON h.id_horario = c.id_horario
+        WHERE c.id_cita = atencion_virtual.id_cita
+          AND h.id_medico =
+              current_setting(
+                  'app.current_medico_id',
+                  TRUE
+              )::BIGINT
+    )
+);
+```
+
+---
+
+# 17. RLS de auditoría
+
+Los pacientes no deben consultar directamente la tabla completa de auditoría.
+
+El acceso a:
+
+`registro_auditoria`
+
+se restringe a perfiles autorizados.
+
+Ejemplo:
+
+```sql
+CREATE POLICY politica_auditoria_lectura
+ON registro_auditoria
+FOR SELECT
+TO app_runtime
+USING (
+    current_setting(
+        'app.current_role',
+        TRUE
+    ) IN ('admin')
+);
+```
+
+D-10 deberá definir si algún rol adicional puede consultar registros de auditoría.
+
+---
+
+# 18. Inserción de auditoría
+
+Los registros de auditoría deben generarse principalmente mediante los mecanismos definidos en Integridad/Auditoría.
+
+La identidad del usuario responsable se obtiene desde:
+
+`app.current_user_id`.
+
+Ejemplo:
+
+```sql
+CREATE POLICY politica_auditoria_insercion
+ON registro_auditoria
+FOR INSERT
+TO app_runtime
+WITH CHECK (
+    id_usuario_responsable =
+    current_setting(
+        'app.current_user_id',
+        TRUE
+    )::BIGINT
+);
+```
+
+---
+
+# 19. Administración y RLS
+
+Un administrador autorizado puede requerir acceso más amplio.
+
+El bypass de RLS no debe concederse indiscriminadamente al usuario técnico normal de aplicación.
+
+La aplicación debe trabajar bajo el principio de mínimo privilegio.
+
+---
+
+# 20. Credenciales de la aplicación
+
+La tabla:
+
+`usuario`
+
+almacena:
+
+`password_hash`.
+
+Estas credenciales son utilizadas por la lógica de autenticación de la aplicación.
+
+No deben utilizarse como credenciales directas de PostgreSQL.
+
+Por tanto, queda eliminada la afirmación anterior de que:
+
+> `usuario.password_hash` es utilizado por PostgreSQL para validar SCRAM.
+
+Eso era incorrecto.
+
+---
+
+# 21. PgBouncer
+
+PgBouncer se utiliza como pool de conexiones entre:
+
+Aplicación
+
+→ PgBouncer
+
+→ PostgreSQL.
+
+La autenticación técnica de PgBouncer debe gestionarse de manera separada de las contraseñas de usuarios finales.
+
+---
+
+# 22. Configuración base de PgBouncer
+
+Ejemplo de configuración:
+
+```ini
+[databases]
+
+hospital =
+    host=127.0.0.1
+    port=5432
+    dbname=hospital
+
+
+[pgbouncer]
+
+listen_addr = 127.0.0.1
+listen_port = 6432
+
+auth_type = scram-sha-256
+
+pool_mode = transaction
+
+max_client_conn = 1000
+default_pool_size = 20
+reserve_pool_size = 5
+
+server_reset_query = DISCARD ALL
+
+query_timeout = 300
+
+logfile = /var/log/pgbouncer/pgbouncer.log
+```
+
+## Nota
+
+Los valores:
+
+- `max_client_conn`;
+- `default_pool_size`;
+- `reserve_pool_size`;
+- `query_timeout`;
+
+son parámetros operativos y deben ajustarse utilizando:
+
+- perfil real de carga;
+- pruebas de rendimiento;
+- capacidad del servidor.
+
+No representan límites funcionales permanentes.
+
+---
+
+# 23. Autenticación en PgBouncer
+
+No se debe usar directamente:
+
+`usuario.password_hash`
+
+como fuente de autenticación SCRAM de PostgreSQL.
+
+Existen dos dominios distintos:
+
+1. credenciales de usuarios de aplicación;
+2. credenciales de roles técnicos PostgreSQL.
+
+PgBouncer debe autenticar las cuentas técnicas mediante un mecanismo compatible con los roles de PostgreSQL.
+
+La aplicación autentica pacientes/médicos de manera separada.
+
+---
+
+# 24. Cifrado en reposo
+
+El diseño requiere proteger los datos almacenados.
+
+La estrategia recomendada debe considerar:
+
+- cifrado del volumen o sistema de archivos;
+- cifrado de backups;
+- control de acceso al servidor;
+- protección de claves fuera del repositorio.
+
+La utilización de cifrado de columnas con `pgcrypto` debe reservarse para casos donde exista una necesidad concreta.
+
+No se agrega automáticamente una columna nueva como:
+
+`observaciones_secure`
+
+porque esto modificaría el modelo físico sin una decisión aprobada.
+
+---
+
+# 25. Gestión de secretos
+
+Nunca deben almacenarse en Git:
+
+- contraseñas de PostgreSQL;
+- contraseña de PgBouncer;
+- claves TLS privadas;
+- claves de cifrado;
+- credenciales administrativas;
+- tokens;
+- claves de servicios externos.
+
+Estos secretos deben obtenerse mediante:
+
+- `.env` no versionado;
+- gestor de secretos;
+- KMS/HSM;
+- mecanismo seguro equivalente.
+
+Esto será especialmente relevante durante:
+
+`Paso 16 — Conexión y credenciales`.
+
+---
+
+# 26. Auditoría técnica con pgAudit
+
+La auditoría funcional de las citas se mantiene en:
+
+`registro_auditoria`.
+
+`pgAudit` cumple un propósito diferente:
+
+> registrar actividad técnica realizada en PostgreSQL.
+
+Ambos mecanismos son complementarios.
+
+---
+
+# 27. Preparación de pgAudit
+
+`pgAudit` debe cargarse de acuerdo con la instalación de PostgreSQL utilizada.
+
+Configuración conceptual:
+
+```conf
+shared_preload_libraries = 'pgaudit'
+```
+
+Posteriormente:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pgaudit;
+```
+
+Ejemplo de categorías de auditoría:
+
+```conf
+pgaudit.log = 'write,ddl,role'
+pgaudit.log_catalog = off
+pgaudit.log_parameter = off
+```
+
+## Motivo
+
+No se recomienda registrar indiscriminadamente valores de parámetros que puedan contener:
+
+- credenciales;
+- datos personales;
+- tokens;
+- información sensible.
+
+---
+
+# 28. Auditoría funcional vs auditoría técnica
+
+## Auditoría funcional
+
+Tabla:
+
+`registro_auditoria`.
+
+Registra:
+
+- cambio de estado;
+- cancelación;
+- reprogramación;
+- cambio de modalidad;
+- usuario responsable;
+- valor anterior;
+- valor posterior.
+
+## Auditoría técnica
+
+`pgAudit`.
+
+Registra:
+
+- operaciones SQL;
+- DDL;
+- cambios de roles;
+- actividad administrativa relevante.
+
+No deben confundirse ambos conceptos.
+
+---
+
+# 29. RBAC — Roles iniciales
+
+Roles de aplicación:
+
+```sql
+INSERT INTO rol (
+    nombre,
+    descripcion
+)
+VALUES
+    ('paciente', 'Usuario paciente del sistema'),
+    ('medico',   'Profesional médico'),
+    ('admision', 'Personal de admisión'),
+    ('admin',    'Administrador del sistema');
+```
+
+D-10 continúa pendiente para definir el alcance exacto de:
+
+`admision`.
+
+---
+
+# 30. Permisos base
+
+Se mantienen los permisos definidos en el modelo físico:
+
+```sql
+INSERT INTO permiso (
+    nombre,
+    descripcion,
+    recurso,
+    accion
+)
+VALUES
+    (
+        'cita.crear',
+        'Crear cita',
+        'cita',
+        'crear'
+    ),
+    (
+        'cita.leer_propias',
+        'Leer sus propias citas',
+        'cita',
+        'leer'
+    ),
+    (
+        'cita.leer_todas',
+        'Leer todas las citas',
+        'cita',
+        'leer'
+    ),
+    (
+        'cita.actualizar',
+        'Actualizar cita',
+        'cita',
+        'actualizar'
+    ),
+    (
+        'cita.cancelar',
+        'Cancelar cita',
+        'cita',
+        'ejecutar'
+    ),
+    (
+        'cita.reprogramar',
+        'Reprogramar cita',
+        'cita',
+        'ejecutar'
+    ),
+    (
+        'auditoria.leer',
+        'Leer auditoría',
+        'auditoria',
+        'leer'
+    ),
+    (
+        'config.leer',
+        'Leer configuración',
+        'config',
+        'leer'
+    ),
+    (
+        'config.actualizar',
+        'Actualizar configuración',
+        'config',
+        'actualizar'
+    );
+```
+
+---
+
+# 31. Asignaciones de permisos
+
+Las asignaciones deben realizarse mediante:
+
+`rol_permiso`.
+
+No debe utilizarse una subconsulta escalar que pueda devolver múltiples filas.
+
+Ejemplo:
+
+```sql
+INSERT INTO rol_permiso (
+    id_rol,
+    id_permiso
+)
+SELECT
+    r.id_rol,
+    p.id_permiso
+FROM rol r
+JOIN permiso p
+  ON p.nombre IN (
+      'cita.leer_propias',
+      'cita.cancelar',
+      'cita.reprogramar'
+  )
+WHERE r.nombre = 'paciente';
+```
+
+Para médicos:
+
+```sql
+INSERT INTO rol_permiso (
+    id_rol,
+    id_permiso
+)
+SELECT
+    r.id_rol,
+    p.id_permiso
+FROM rol r
+JOIN permiso p
+  ON p.nombre IN (
+      'cita.leer_todas',
+      'cita.actualizar'
+  )
+WHERE r.nombre = 'medico';
+```
+
+## Admisión
+
+No se fija todavía la lista final de permisos del rol:
+
+`admision`
+
+porque D-10 continúa pendiente.
+
+---
+
+# 32. Protección frente a fuerza bruta
+
+La tabla `usuario` incluye:
+
+- `intentos_fallidos`;
+- `bloqueado_hasta`.
+
+El control de intentos de acceso corresponde principalmente a la aplicación.
+
+La aplicación debe:
+
+1. registrar intento fallido;
+2. incrementar contador;
+3. aplicar bloqueo según política aprobada;
+4. reiniciar contador cuando corresponda;
+5. auditar eventos relevantes.
+
+No se inventa en este paso un número específico de intentos máximos si no está definido en requisitos.
+
+---
+
+# 33. Tiempo de sesión
+
+RNF-07 / D-13 establece:
+
+`15 minutos`
+
+como valor inicial configurable de inactividad de sesión.
+
+Este valor pertenece a:
+
+`parametros_configuracion`.
+
+No debe confundirse con:
+
+`idle_in_transaction_session_timeout`.
+
+Son conceptos diferentes.
+
+---
+
+# 34. Timeouts de PostgreSQL
+
+Pueden definirse límites operativos para evitar conexiones o consultas abandonadas.
+
+Ejemplo de configuración inicial:
+
+```conf
 idle_in_transaction_session_timeout = '180s'
 statement_timeout = '60s'
-
-# Conexiones concurrentas
-max_connections = 200
-superuser_reserved_connections = 3
-
-# WAL y replicación
-wal_level = 'logical'  -- para logical replication / upgrades
-max_wal_senders = 3
-wal_keep_segments = 64
-
-# Búsqueda de planes
-enable_bitmapscan = on
-enable_indexscan = on
-enable_indexonlyscan = on
-
-# Evitar plan caching attacks
-max_prepared_transactions = 0
-max_connections = 200
 ```
 
-### 9.2 `sysctl` — Recursos del sistema
+Estos valores son ajustes operativos.
 
-```bash
-# Compartir memoria (postgresql.conf: shared_buffers)
-vm.swappiness = 10
+Deben validarse mediante:
 
-# Memory locking para evitar swap de WAL
-bootstrap.memory_lock = true  # Requiere systemd/service configurado
+- pruebas;
+- perfil de carga;
+- comportamiento real de la aplicación.
 
-# Descripciones de errores del kernel
-kernel.pid_max = 4194303
-```
-
-### 9.3 Backup y PITR con pgBackRest
-
-```bash
-# Instalar pgBackRest 2.52+
-# Configuración mínima
-[postgresql]
-  directory = /var/lib/postgresql/18/main
-  status_directory = /var/log/pgbackrest
-  cipher = aes256
-  compression = zstd
-  compression-level = 3
-  repo1-path = /var/lib/pgbackrest/repo1
-  repo1-retention-full = 7  -- últimos 7 full backups
-  repo1-retention-diff = 30 -- últimos 30 incremental
-  verbose = true
-
-# Backup completo (programado vía cron)
-pgbackrest --stanza=hospital backup
-
-# PITR (Point-in-Time Recovery)
-pgbackrest --stanza=hospital resolve-to-point='2026-09-27 14:30:00'
-
-# Verificar integridad del backup
-pgbackrest check
-```
+No sustituyen el parámetro funcional de sesión de 15 minutos.
 
 ---
 
-## 10. Cumplimiento de Normativas de Salud
+# 35. Hardening básico de PostgreSQL
 
-| Normativa | Requisito | Estado de implementación |
-|-----------|-----------|------------------------|
-| **HIPAA (EU equivalence)** | Cifrado en tránsito TLS 1.2+ ✓ | Implementado (pg_hba.conf, postgresql.conf) |
-| | Cifrado en reposo ✓ | File-system encryption + pgcrypto opcional |
-| | Auditoría inmutable ✓ | pgAudit + logs SIEM |
-| | Control de acceso por rol ✓ | RLS + RBAC |
-| | Integridad de datos ✓ | FK RESTRICT, triggers, CHECK |
-| **GDPR (España)** | Derecho al olvido técnico (pseudonimización) | En diseño, no anonimización total por conservación ≥5 años |
-| | Notificación brechas de seguridad | Procedimiento documentado (Paso 12) |
-| | Transferencia internacional de datos | Solo vía TLS + VPN/Interconexión segura |
-| **Ley 15/1999, de 13 de diciembre, de Protección de Datos** | Consentimiento informado en datos sensibles | A nivel aplicación, no BD |
-| | Acceso del afectado a sus datos | RLS por `id_paciente` garantiza aislamiento |
+Configuraciones relevantes:
+
+```conf
+password_encryption = 'scram-sha-256'
+
+ssl = on
+ssl_min_protocol_version = 'TLSv1.2'
+
+log_error_verbosity = DEFAULT
+log_min_error_statement = ERROR
+```
+
+Los siguientes aspectos deben ajustarse según capacidad real:
+
+- `max_connections`;
+- memoria;
+- WAL;
+- checkpoints;
+- autovacuum;
+- logging.
+
+No deben establecerse valores arbitrarios como una regla permanente del sistema.
 
 ---
 
-## 11. Próximo Paso
+# 36. Acceso de red
 
-**Paso 10 — Auditoría, histórico y versionamiento**
-Usar: `databases` (+ `postgresql-table-design` para aspectos de versionamiento)
-Salida: `proyecto/base_datos/08_auditoria_historico/auditoria_historico.md`
+PostgreSQL no debe exponerse directamente a redes públicas.
 
-DETENERSE y esperar aprobación humana.
+Se recomienda:
+
+Aplicación
+
+→ red privada
+
+→ PgBouncer
+
+→ PostgreSQL.
+
+Los accesos administrativos deben realizarse mediante una red controlada.
+
+---
+
+# 37. Backup y recuperación
+
+La seguridad también comprende:
+
+- confidencialidad del backup;
+- integridad;
+- disponibilidad;
+- capacidad de restauración.
+
+Los backups deben almacenarse cifrados.
+
+Debe existir prueba periódica de restauración.
+
+El diseño detallado de backup y recuperación debe respetar:
+
+- RPO;
+- RTO;
+- retención;
+- política de infraestructura.
+
+No se considera un backup exitoso hasta comprobar que puede restaurarse.
+
+---
+
+# 38. Protección de datos sensibles
+
+Se deben proteger especialmente:
+
+- datos personales del paciente;
+- datos médicos;
+- credenciales;
+- enlaces de atención virtual;
+- auditoría;
+- IP;
+- metadatos técnicos.
+
+Las consultas deben seguir el principio de:
+
+> mínimo dato necesario.
+
+---
+
+# 39. Datos de producción
+
+Los datos reales de pacientes no deben copiarse directamente a entornos de desarrollo o pruebas sin un proceso de:
+
+- anonimización;
+- seudonimización;
+- autorización correspondiente.
+
+---
+
+# 40. Logs
+
+Los logs no deben incluir innecesariamente:
+
+- contraseñas;
+- tokens;
+- hashes completos;
+- claves privadas;
+- datos sensibles completos del paciente.
+
+Las operaciones críticas deben ser trazables sin exponer información innecesaria.
+
+---
+
+# 41. Observabilidad y seguridad
+
+La observabilidad técnica permanece separada de:
+
+`registro_auditoria`.
+
+Puede incluir:
+
+- fallos de autenticación;
+- errores del servidor;
+- consultas lentas;
+- fallos de integración;
+- eventos de seguridad.
+
+No debe sustituir la auditoría funcional.
+
+---
+
+# 42. Conservación de auditoría
+
+Los registros funcionales relacionados con las citas deben conservarse conforme a:
+
+RN-25 / D-20 / RNF-18.
+
+Las políticas de seguridad no deben permitir que un usuario normal pueda eliminar registros históricos protegidos.
+
+---
+
+# 43. Médico derivado del horario
+
+Después de la normalización:
+
+`cita.id_medico`
+
+no existe.
+
+Por tanto, cualquier regla de seguridad que necesite conocer el médico debe utilizar:
+
+```text
+cita.id_horario
+        ↓
+horario.id_medico
+```
+
+Esto aplica a:
+
+- RLS;
+- filtros;
+- consultas;
+- auditoría;
+- seguridad de atención virtual;
+- políticas de acceso del médico.
+
+---
+
+# 44. D-08 y D-09
+
+## D-08
+
+Continúa pendiente.
+
+No existe:
+
+`medico_especialidad.habilitada_modalidad_virtual`.
+
+## D-09
+
+Continúa pendiente.
+
+No existe:
+
+`horario.modalidad`.
+
+Se mantiene:
+
+`cita.modalidad`.
+
+La seguridad no debe inventar una resolución de estas decisiones.
+
+---
+
+# 45. D-10
+
+El alcance exacto del personal de admisión continúa pendiente.
+
+Por tanto:
+
+- puede existir el rol `admision`;
+- pueden existir permisos candidatos;
+- pero no debe considerarse cerrada su matriz definitiva de autorización.
+
+---
+
+# 46. D-02, D-03 y D-04
+
+La seguridad no asigna valores a:
+
+- tiempo mínimo de cancelación;
+- tiempo mínimo de reprogramación;
+- tolerancia de no asistencia;
+- anticipación máxima de reserva.
+
+Estos parámetros continúan pendientes.
+
+---
+
+# 47. Checklist de seguridad corregido
+
+- [x] Autenticación PostgreSQL separada de autenticación de usuarios finales.
+- [x] `scram-sha-256` definido para roles técnicos.
+- [x] Error `mdc512` eliminado.
+- [x] Conexiones remotas mediante `hostssl`.
+- [x] Conexiones sin TLS rechazadas.
+- [x] Contraseñas fuera del repositorio.
+- [x] Usuario técnico de aplicación sin privilegios administrativos.
+- [x] RLS habilitado para tablas sensibles.
+- [x] Política del médico corregida para utilizar `horario.id_medico`.
+- [x] `cita.id_medico` no utilizado.
+- [x] Atención virtual protegida mediante la cita relacionada.
+- [x] Auditoría funcional separada de pgAudit.
+- [x] `usuario.password_hash` no utilizado como contraseña de PostgreSQL.
+- [x] PgBouncer separado de autenticación de usuarios finales.
+- [x] Contexto RLS mediante `SET LOCAL` por transacción.
+- [x] D-08 permanece pendiente.
+- [x] D-09 permanece pendiente.
+- [x] D-10 permanece pendiente.
+- [x] D-02/D-03/D-04 permanecen sin valores inventados.
+- [x] Secretos no versionados.
+- [x] Preparado para nueva revisión DBA.
+
+---
+
+# 48. Cambios realizados respecto de la versión anterior
+
+## Cambio 1
+
+Corregido:
+
+```text
+mdc512
+```
+
+Se elimina y se utiliza:
+
+```text
+scram-sha-256
+```
+
+en conexiones autenticadas.
+
+---
+
+## Cambio 2
+
+Eliminado el uso directo de:
+
+`cita.id_medico`
+
+en políticas RLS.
+
+Ahora se utiliza:
+
+`cita.id_horario → horario.id_medico`.
+
+---
+
+## Cambio 3
+
+Se corrige la política:
+
+`politica_cita_medico`.
+
+---
+
+## Cambio 4
+
+Se elimina:
+
+`USING (TRUE)`
+
+como protección general de `atencion_virtual`.
+
+Ahora el acceso se valida mediante la cita relacionada.
+
+---
+
+## Cambio 5
+
+Se separa:
+
+`usuario.password_hash`
+
+de las credenciales internas de PostgreSQL.
+
+---
+
+## Cambio 6
+
+Se elimina la afirmación de que PostgreSQL utiliza el hash de contraseña del paciente/médico para SCRAM.
+
+---
+
+## Cambio 7
+
+La cuenta técnica de aplicación se separa de:
+
+- paciente;
+- médico;
+- admisión;
+- admin.
+
+Estos continúan siendo roles funcionales de la aplicación.
+
+---
+
+## Cambio 8
+
+Se corrige el uso de PgBouncer.
+
+PgBouncer autentica cuentas técnicas, no directamente las credenciales finales de la tabla `usuario`.
+
+---
+
+## Cambio 9
+
+Se establece:
+
+`SET LOCAL app.current_*`
+
+por transacción para compatibilidad con:
+
+`pool_mode = transaction`.
+
+---
+
+## Cambio 10
+
+Se eliminan modificaciones no aprobadas del modelo como:
+
+`observaciones_secure`.
+
+---
+
+## Cambio 11
+
+Se evita afirmar que la seguridad ya está físicamente desplegada.
+
+El documento define el diseño que deberá aplicarse y validarse posteriormente.
+
+---
+
+# 49. Conclusiones del Paso 09 corregido
+
+1. La autenticación de usuarios de aplicación se mantiene separada de PostgreSQL.
+
+2. PostgreSQL utiliza roles técnicos para las conexiones.
+
+3. Las credenciales PostgreSQL utilizan `scram-sha-256`.
+
+4. Se elimina el error `mdc512`.
+
+5. Se exige TLS para las conexiones remotas.
+
+6. Los secretos no deben almacenarse dentro del repositorio.
+
+7. `cita.id_medico` ya no se utiliza.
+
+8. El médico relacionado con una cita se obtiene mediante:
+
+   `cita.id_horario → horario.id_medico`.
+
+9. Las políticas RLS del médico se actualizan para utilizar esa relación.
+
+10. Las políticas de atención virtual utilizan la cita relacionada.
+
+11. `usuario.password_hash` corresponde exclusivamente a autenticación de aplicación.
+
+12. Las credenciales técnicas de PostgreSQL son independientes.
+
+13. PgBouncer trabaja con las credenciales técnicas de conexión.
+
+14. En modo `transaction`, el contexto RLS se establece mediante `SET LOCAL` en cada transacción.
+
+15. La auditoría funcional continúa separada de la auditoría técnica de pgAudit.
+
+16. D-08 y D-09 continúan pendientes.
+
+17. D-10 continúa pendiente respecto del alcance definitivo de admisión.
+
+18. D-02, D-03 y D-04 no reciben valores arbitrarios.
+
+19. El documento queda alineado con el modelo lógico, físico e integridad corregidos.
+
+---
+
+# 50. Estado del archivo
+
+**Archivo:**
+
+`proyecto/base_datos/07_seguridad/seguridad.md`
+
+**Paso de origen:**
+
+`Paso 09 — Seguridad`
+
+**Agente utilizado:**
+
+`database-engineer`
+
+**Skills utilizados:**
+
+- `databases`
+- `security-reviewer`
+
+**Corrección posterior:**
+
+Propagación de:
+
+- Paso 05 — Normalización;
+- Paso 14 — Revisión DBA con `STATUS: CHANGES_REQUIRED`.
+
+**Estado actual:**
+
+Corregido manualmente y pendiente de nueva Revisión DBA.
+
+---
+
+# 51. Control de avance
+
+Esta corrección **NO autoriza ejecutar el Paso 15 — Generación SQL**.
+
+Todavía deben revisarse y corregirse:
+
+- `08_auditoria_historico/auditoria_historico.md`;
+- `10_indices_rendimiento/indices_rendimiento.md`;
+- `11_transacciones_concurrencia/transacciones_concurrencia.md`;
+- `12_migraciones/migraciones.md`.
+
+Después debe ejecutarse nuevamente:
+
+`Paso 14 — Revisión DBA`.
+
+Solo se podrá preparar el Paso 15 cuando el resultado sea:
+
+```text
+STATUS: APPROVED
+```
+
+**NO generar SQL final todavía.**
+
+**DETENERSE y esperar nueva validación DBA.**
