@@ -1,0 +1,15 @@
+# Variables de entorno y credenciales
+.env
+
+# Configuración local de Claude
+.claude/settings.local.json
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de respaldo o temporales
+*.tmp
+*.temp
+*.bak
+*.log
