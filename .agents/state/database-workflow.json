@@ -1,6 +1,6 @@
 {
   "workflow": "02_database_workflow",
-  "current_step": 16,
+  "current_step": 19,
   "completed": [
     "Paso 01 — Lectura y trazabilidad",
     "Paso 02 — Modelo conceptual",
@@ -17,11 +17,14 @@
     "Paso 13 — Migraciones",
     "Paso 14 — Revisión DBA",
     "Paso 15 — Generación SQL",
-    "Paso 16 — Configuración de conexión"
+    "Paso 16 — Configuración de conexión",
+    "Paso 17 — Despliegue",
+    "Paso 18 — Verificación post-despliegue",
+    "Paso 19 — Verificación con pruebas funcionales"
   ],
   "blocked": false,
-  "next": "Paso 17 — Despliegue (requiere autorización explícita)",
-  "last_output": "Validación estática SQL (0 fallos), configuración de conexión documentada sin credenciales reales",
+  "next": "Cierre del flujo de base de datos",
+  "last_output": "Paso 18 — Verificación post-despliegue COMPLETADO: Todas las verificaciones pasaron exitosamente:\n- 16/16 tablas creadas\n- 4/4 ENUMs definidos\n- 15/15 claves primarias\n- 17/17 claves foráneas\n- 40/40 índices críticos (incl. uk_cita_horario_ocurrencia_activa)\n- 7 funciones, 15 triggers operativos\n- cita_historico particionada con cita_historico_default\n- cita no tiene id_medico (relación correcta: cita.id_horario -> horario.id_medico)\n- 0 constraints inválidas\n- 0 errores de sintaxis en funciones/triggers (solo warnings de RAISE esperados)\n\nPaso 19 — Verificación con pruebas funcionales COMPLETADO: 10/10 pruebas pasaron en una sola transacción con ROLLBACK:\n- [Paso 1] OK: Datos mínimos creados (paciente=6, medico=6, especialidad=9, usuario=6, horario=8)\n- [Paso 2] OK: Cita válida creada (id_cita = 17)\n- [Paso 3] OK: Auditoría registrada (1 filas) y registro de histórico (1 filas)\n- [Paso 4] OK: Cita bloqueada — especialidad no asociada al médico\n- [Paso 5] OK: Doble reserva bloqueada (índice único uk_cita_horario_ocurrencia_activa)\n- [Paso 6] OK: Solapamiento de citas del mismo paciente bloqueado\n- [Paso 7] OK: Transiciones válidas permitidas (Programada -> Confirmada -> En_atencion -> Finalizada)\n- [Paso 8] OK: Transición inválida (Finalizada -> Programada) bloqueada por trigger\n- [Paso 9] OK: Parámetro tiempo_inactividad_sesion_minutos = 15 verificado\n- [Paso 10] OK: ROLLBACK aplicado — no quedaron datos de prueba\n\nNota: se corrigió el nombre de columna en el script (fecha_horaInicio_atencion -> fecha_hora_inicio_atencion), coincidencia con el esquema desplegado.",
   "outputs": {
     "01_requisitos_datos": "proyecto/base_datos/01_requisitos_datos/requisitos_datos.md",
     "02_modelo_conceptual": "proyecto/base_datos/02_modelo_conceptual/modelo_conceptual.md",
