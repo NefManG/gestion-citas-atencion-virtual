@@ -57,6 +57,30 @@ $router->addRoute('DELETE', '/api/v1/especialidades/{id}', function (Request $re
 });
 
 // ---------------------------------------------------------------
+// POST /api/v1/auth/login
+// ---------------------------------------------------------------
+$router->addRoute('POST', '/api/v1/auth/login', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\AuthController();
+    return $controller->login($request, $response);
+});
+
+// ---------------------------------------------------------------
+// GET /api/v1/auth/me
+// ---------------------------------------------------------------
+$router->addRoute('GET', '/api/v1/auth/me', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\AuthController();
+    return $controller->me($request, $response);
+});
+
+// ---------------------------------------------------------------
+// POST /api/v1/auth/logout
+// ---------------------------------------------------------------
+$router->addRoute('POST', '/api/v1/auth/logout', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\AuthController();
+    return $controller->logout($request, $response);
+});
+
+// ---------------------------------------------------------------
 // GET /api/v1/health
 // ---------------------------------------------------------------
 $router->addRoute('GET', '/api/v1/health', function (Request $request, Response $response) {
@@ -109,4 +133,43 @@ $router->setMethodNotAllowedHandler(function (Request $request, Response $respon
     );
 });
 
+// ---------------------------------------------------------------
+// GET /api/v1/medicos
+// ---------------------------------------------------------------
+$router->addRoute('GET', '/api/v1/medicos', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\MedicoController();
+    return $controller->index($request, $response);
+});
+
+// ---------------------------------------------------------------
+// GET /api/v1/medicos/{id}
+// ---------------------------------------------------------------
+$router->addRoute('GET', '/api/v1/medicos/{id}', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\MedicoController();
+    return $controller->show($request, $response);
+});
+
+// ---------------------------------------------------------------
+// POST /api/v1/medicos
+// ---------------------------------------------------------------
+$router->addRoute('POST', '/api/v1/medicos', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\MedicoController();
+    return $controller->create($request, $response);
+});
+
+// ---------------------------------------------------------------
+// PUT /api/v1/medicos/{id}
+// ---------------------------------------------------------------
+$router->addRoute('PUT', '/api/v1/medicos/{id}', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\MedicoController();
+    return $controller->update($request, $response);
+});
+
+//----------------------------------------------------------------
+// DELETE /api/v1/medicos/{id}
+//----------------------------------------------------------------
+$router->addRoute('DELETE', '/api/v1/medicos/{id}', function (Request $request, Response $response) {
+    $controller = new \App\Controllers\Api\MedicoController();
+    return $controller->delete($request, $response);
+});
 return $router;

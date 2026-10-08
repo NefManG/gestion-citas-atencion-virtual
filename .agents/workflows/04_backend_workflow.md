@@ -21,16 +21,16 @@ POST `/api/v1/auth/login` con sesión PHP. STOP.
 POST `/api/v1/auth/logout` + GET `/api/v1/auth/me`. STOP.
 
 ## CP-BACK-05
-GET productos/listado-detalle. STOP.
+GET medicos/listado-detalle. STOP.
 
 ## CP-BACK-06
-POST productos + fixtures. STOP.
+POST medicos + fixtures. STOP.
 
 ## CP-BACK-07
-PUT productos. STOP.
+PUT medicos. STOP.
 
 ## CP-BACK-08
-DELETE lógico productos (`estado='inactivo'`). STOP.
+DELETE lógico medicos (`activo=false`). STOP.
 
 ## CP-BACK-09
 Suite backend. Terminar en `HUMAN_STATUS: PENDING`. No iniciar frontend.

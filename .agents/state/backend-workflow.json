@@ -1,0 +1,38 @@
+{
+  "workflow": "04_backend_workflow",
+  "phase": "backend",
+  "scope": ["autenticacion_minima", "medicos"],
+  "current_checkpoint": "CP-BACK-09",
+  "last_completed_checkpoint": "CP-BACK-09",
+  "technical_status": "PASSED",
+  "human_status": "APPROVED",
+  "blocked": false,
+  "can_continue": true,
+  "next": "Workflow 04 Backend reducido completado y aprobado. No iniciar frontend.",
+  "artifacts": {
+    "create_demo_user_script": "proyecto/06_codigo/tools/create_demo_user.php",
+    "database_core": "proyecto/06_codigo/app/Core/database.php",
+    "config_database": "proyecto/06_codigo/config/database.php",
+    "api_pilot_state": ".agents/state/api-pilot-workflow.json",
+    "backend_workflow": ".agents/state/backend-workflow.json",
+    "backend_workflow_def": ".agents/workflows/04_backend_workflow.md"
+  },
+  "evidence": {
+    "script_created": true,
+    "php_syntax_passed": true,
+    "first_execution_created_user": true,
+    "second_execution_no_duplicate": true,
+    "user_exists_verified": true,
+    "password_is_hash": true,
+    "password_hash_bcrypt": true,
+    "role_assigned_if_exists": true,
+    "no_hardcoded_real_credentials": true,
+    "no_schema_modifications": true,
+    "prepared_statements_used": true,
+    "idempotent_execution": true,
+    "no_stack_trace_exposure": true,
+    "no_credential_exposure": true
+  },
+  "script_usage": "php tools/create_demo_user.php --username=<nombre> --email=<email> --password=<password> [--role=<role>]\nVariables de entorno: DEMO_USER_USERNAME, DEMO_USER_EMAIL, DEMO_USER_PASSWORD, DEMO_USER_ROLE",
+  "next_checkpoint": null
+}
