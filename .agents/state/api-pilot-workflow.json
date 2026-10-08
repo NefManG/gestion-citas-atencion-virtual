@@ -1,0 +1,183 @@
+{
+  "workflow": "03_api_pilot_workflow",
+  "phase": "api_pilot",
+  "scope": [
+    "especialidad"
+  ],
+  "current_checkpoint": "CP-API-08",
+  "last_completed_checkpoint": "CP-API-08",
+  "technical_status": "PASSED",
+  "human_status": "APPROVED",
+  "blocked": false,
+  "can_continue": true,
+  "next": "API Pilot cerrado y aprobado. Habilitado para continuar con 04_backend_workflow.md.",
+  "skills_used": [
+    "api-design-principles",
+    "php-development",
+    "openapi-spec-generation"
+  ],
+  "artifacts": {
+    "contrato_especialidades": "proyecto/06_codigo/docs/api/01_contrato_especialidades.md",
+    "openapi_especialidades": "proyecto/06_codigo/docs/api/02_openapi_especialidades.yaml",
+    "validator_especialidad": "proyecto/06_codigo/app/Validators/EspecialidadValidator.php",
+    "bootstrap_php": "proyecto/06_codigo/public/index.php",
+    "config_php": "proyecto/06_codigo/config/app.php",
+    "env_php": "proyecto/06_codigo/.env"
+  },
+  "database": {
+    "dbms": "PostgreSQL 18.6",
+    "database": "hospital_citas_dev",
+    "table": "especialidad",
+    "columns": {
+      "id_especialidad": "bigint PK autoincremental",
+      "nombre": "text NOT NULL UNIQUE",
+      "descripcion": "text NULLABLE",
+      "activo": "boolean NOT NULL DEFAULT true",
+      "created_at": "timestamp with time zone NOT NULL DEFAULT now()",
+      "updated_at": "timestamp with time zone NOT NULL DEFAULT now()"
+    }
+  },
+  "stack": {
+    "language": "PHP 8.2.12",
+    "framework": "ninguno",
+    "database": "PostgreSQL 18.6",
+    "driver": "PDO con driver PostgreSQL (pdo_pgsql)",
+    "protocol": "REST + JSON",
+    "api_prefix": "/api/v1/"
+  },
+  "architecture": {
+    "pattern": "Request -> Router -> Controller -> Validator/Service -> Repository -> PDO PostgreSQL",
+    "router_responsibility": "Resolver método HTTP y URI hacia Controller.",
+    "controller_responsibility": "Recibir Request, delegar validación y caso de uso, construir Response.",
+    "validator_responsibility": "Validar parámetros, identificadores y cuerpo de entrada.",
+    "service_responsibility": "Aplicar lógica de aplicación y reglas del caso de uso.",
+    "repository_responsibility": "Ejecutar SQL mediante PDO y prepared statements.",
+    "database_responsibility": "Proporcionar la conexión PDO a PostgreSQL."
+  },
+  "endpoints_implemented": [
+    "GET /api/v1/health",
+    "GET /api/v1/especialidades",
+    "GET /api/v1/especialidades/{id}",
+    "POST /api/v1/especialidades",
+    "PUT /api/v1/especialidades/{id}",
+    "DELETE /api/v1/especialidades/{id}"
+  ],
+  "endpoints_pending": [],
+  "environment_setup": {
+    "pdo_pgsql_enabled": true,
+    "php_ini_modified": "C:\\xampp\\php\\php.ini",
+    "env_file": "proyecto/06_codigo/.env"
+  },
+  "constraints": [
+    "POST /api/v1/especialidades está implementado y validado.",
+    "PUT /api/v1/especialidades/{id} está implementado y validado.",
+    "DELETE /api/v1/especialidades/{id} está implementado y validado.",
+    "No se modificó el esquema de la base de datos durante CP-API-08.",
+    "DELETE significa inactivar mediante activo=false, nunca DELETE FROM especialidad.",
+    "RN-17 establece que POST, PUT y DELETE deben restringirse a usuarios administradores; la autenticación y autorización no forman parte del API Pilot actual.",
+    "Validación server-side obligatoria mediante Validator.",
+    "Prepared statements para las consultas de persistencia.",
+    "SQL y PDO de persistencia permanecen en Repository.",
+    "Controller, Service, routes y public/index.php no ejecutan SQL ni PDO de persistencia directamente.",
+    "PUT solo actualiza especialidades activas.",
+    "Las respuestas de error de base de datos no exponen credenciales ni stack trace.",
+    "Credenciales únicamente mediante variables de entorno.",
+    "Las respuestas HTTP 500 por conexión a base de datos utilizan Content-Type application/json."
+  ],
+  "validation": {
+    "CP-API-05": {
+      "post_valido": "PASSED - HTTP 201",
+      "post_sin_nombre": "PASSED - HTTP 400",
+      "post_tipo_invalido": "PASSED - HTTP 400",
+      "database_error": "PASSED - HTTP 500 controlado",
+      "health_regression": "PASSED - HTTP 200",
+      "collection_regression": "PASSED - HTTP 200",
+      "detail_regression": "PASSED",
+      "fixture_temporal": "ID 18 inactivado mediante activo=false",
+      "temporary_files": "eliminados"
+    },
+    "CP-API-06": {
+      "put_valido": "PASSED - HTTP 200 - ID 19 actualizado correctamente",
+      "put_id_inexistente": "PASSED - HTTP 404",
+      "put_id_invalido": "PASSED - HTTP 400 INVALID_PARAMETER",
+      "put_nombre_faltante": "PASSED - HTTP 400 FIELD_REQUIRED",
+      "put_nombre_vacio": "PASSED - HTTP 400 FIELD_EMPTY",
+      "put_nombre_tipo_invalido": "PASSED - HTTP 400 INVALID_FIELD_TYPE",
+      "put_descripcion_tipo_invalido": "PASSED - HTTP 400 INVALID_FIELD_TYPE",
+      "put_registro_inactivo": "PASSED - HTTP 404 sobre ID 18",
+      "database_error": "PASSED - HTTP 500 controlado DATABASE_CONNECTION_ERROR",
+      "health_regression": "PASSED - HTTP 200",
+      "collection_regression": "PASSED - HTTP 200",
+      "detail_regression": "PASSED - HTTP 200",
+      "post_regression": "PASSED - registro temporal ID 20 confirmado mediante GET HTTP 200",
+      "architecture_check": "PASSED - sin SQL/PDO en Controller, Service ni routes",
+      "php_syntax": "PASSED - Repository, Service, Controller y routes sin errores",
+      "fixtures_temporales": "IDs 19 y 20 inactivados mediante activo=false",
+      "temporary_files": "eliminados",
+      "human_validation": "APPROVED"
+    },
+    "CP-API-07": {
+      "delete_valido": "PASSED - HTTP 200 - ID 25 inactivado mediante activo=false",
+      "get_despues_delete": "PASSED - HTTP 404",
+      "verify_db_activo_false": "PASSED - registro ID 25 físicamente existente con activo=false",
+      "delete_inexistente": "PASSED - HTTP 404 RESOURCE_NOT_FOUND",
+      "delete_invalido": "PASSED - HTTP 400 INVALID_PARAMETER",
+      "delete_ya_inactivo": "PASSED - HTTP 404",
+      "database_error": "PASSED - HTTP 500 DATABASE_CONNECTION_ERROR",
+      "health_regression": "PASSED - HTTP 200",
+      "collection_regression": "PASSED - HTTP 200",
+      "detail_regression": "PASSED - HTTP 200",
+      "post_regression": "PASSED",
+      "put_regression": "PASSED",
+      "architecture_check": "PASSED - sin SQL/PDO en Controller, Service ni routes",
+      "php_syntax": "PASSED",
+      "delete_from_absent": "CONFIRMED - no existe DELETE FROM especialidad ejecutable",
+      "human_validation": "APPROVED"
+    },
+    "CP-API-08": {
+      "health": "PASSED - GET /api/v1/health - HTTP 200 - database connected - Content-Type application/json",
+      "collection": "PASSED - GET /api/v1/especialidades - HTTP 200",
+      "post_valido": "PASSED - HTTP 201 - fixture ID 29 creado",
+      "detail_fixture": "PASSED - GET ID 29 - HTTP 200",
+      "put_valido": "PASSED - HTTP 200 - ID 29 actualizado a CP-API-08-Actualizada",
+      "put_persistencia": "PASSED - GET posterior confirmó los datos actualizados del ID 29",
+      "delete_logico": "PASSED - HTTP 200 - ID 29 actualizado a activo=false",
+      "get_despues_delete": "PASSED - HTTP 404 RESOURCE_NOT_FOUND para ID 29",
+      "verify_db_activo_false": "PASSED - PostgreSQL confirmó que ID 29 continúa físicamente existente con activo=false",
+      "post_sin_nombre": "PASSED - HTTP 400 FIELD_REQUIRED",
+      "get_id_invalido": "PASSED - HTTP 400 INVALID_PARAMETER para abc",
+      "get_id_inexistente": "PASSED - HTTP 404 RESOURCE_NOT_FOUND para ID 99999",
+      "put_nombre_faltante": "PASSED - HTTP 400 FIELD_REQUIRED",
+      "put_id_inexistente": "PASSED - HTTP 404 RESOURCE_NOT_FOUND para ID 99999",
+      "delete_id_invalido": "PASSED - HTTP 400 INVALID_PARAMETER para abc",
+      "delete_id_inexistente": "PASSED - HTTP 404 RESOURCE_NOT_FOUND para ID 99999",
+      "database_error": "PASSED - HTTP 500 DATABASE_CONNECTION_ERROR usando base de datos inexistente controlada",
+      "database_error_content_type": "PASSED - Content-Type application/json; charset=UTF-8",
+      "validator": "PASSED - EspecialidadController utiliza EspecialidadValidator para parámetros y cuerpos de entrada",
+      "architecture_check": "PASSED - sin SQL/PDO ejecutable en Controller, Service, routes ni public/index.php",
+      "delete_from_absent": "PASSED - no existe DELETE FROM especialidad ejecutable en el proyecto",
+      "php_syntax": "PASSED - Database, Validator, Controller, Service, Repository y routes sin errores de sintaxis",
+      "openapi_yaml": "PASSED - YAML cargado correctamente mediante PyYAML",
+      "openapi_version": "PASSED - OpenAPI 3.1.0",
+      "openapi_paths": "PASSED - 3 paths",
+      "openapi_operations": "PASSED - 6 operaciones",
+      "openapi_base_url": "PASSED - /api/v1",
+      "openapi_structure": "PASSED - /health GET; /especialidades GET POST; /especialidades/{id} GET PUT DELETE",
+      "openapi_formal_validator": "NOT_EXECUTED - paquete openapi_spec_validator no instalado; no se instaló software adicional",
+      "temporary_json_files": "PASSED - eliminados",
+      "temporary_jobs": "PASSED - servidores/jobs temporales detenidos y eliminados",
+      "fixture_temporal": "ID 29 conservado físicamente e inactivado mediante activo=false",
+      "technical_validation": "PASSED",
+      "human_validation": "APPROVED",
+      "observacion": "Durante GET de colección se observaron los IDs 24 y 27 activos. No fueron modificados durante CP-API-08."
+    }
+  },
+  "next_checkpoints": {
+    "CP-API-03": "GET /api/v1/especialidades",
+    "CP-API-04": "GET /api/v1/especialidades/{id}",
+    "CP-API-05": "POST especialidad + validaciones",
+    "CP-API-06": "PUT especialidad + validaciones",
+    "CP-API-07": "DELETE lógico mediante activo=false",
+    "CP-API-08": "OpenAPI + suite CRUD completa"
+  }
+}

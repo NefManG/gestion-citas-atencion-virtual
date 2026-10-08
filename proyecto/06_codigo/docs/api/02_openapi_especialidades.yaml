@@ -1,0 +1,655 @@
+---
+openapi: 3.1.0
+info:
+  title: Sistema de Gestión de Citas y Atención Virtual — API de Especialidades
+  description: |
+    API piloto para la gestión de especialidades médicas del Hospital Boliviano Español.
+    Esta API forma parte de la fase de API piloto (CP-API-01 a CP-API-08).
+
+    ## Restricciones
+    - Solo usuarios con rol **administrador** pueden POST, PUT y DELETE (RN-17).
+    - No se implementa autenticación en esta fase piloto.
+    - **DELETE es inactivación lógica**: nunca se elimina físicamente la fila.
+    - El registro físico sigue existiendo en PostgreSQL con `activo = false` después de DELETE.
+    - Se usan prepared statements (PDO) en todas las consultas.
+    - Los errores se devuelven con `Content-Type: application/json; charset=UTF-8`.
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo — Sistema de Citas y Atención Virtual
+  license:
+    name: Propietario
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Desarrollo local
+  - url: /api/v1
+    description: Raíz relativa (se aplica un prefijo en el despliegue)
+tags:
+  - name: Health
+    description: Verificación de estado del servicio
+  - name: Especialidades
+    description: Operaciones CRUD sobre la entidad especialidad
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Comprobar estado del servicio y conexión a base de datos
+      description: |
+        Verifica que el servicio HTTP y la base de datos PostgreSQL están disponibles.
+        Excluido del alcance CRUD de especialidades.
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Servicio disponible y conectado a base de datos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                default:
+                  value:
+                    success: true
+                    data:
+                      status: ok
+                      database: connected
+                      timestamp: "2026-10-07T23:49:48+00:00"
+                      version: "1.0.0"
+                    message: Servicio disponible
+        "500":
+          description: Error interno al conectar con la base de datos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    success: false
+                    error:
+                      code: DATABASE_CONNECTION_ERROR
+                      message: No se pudo conectar a la base de datos.
+        "404":
+          description: Ruta no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /especialidades:
+    get:
+      operationId: listEspecialidades
+      summary: Listar todas las especialidades activas
+      description: |
+        Devuelve la lista de especialidades con `activo = true`.
+        Las especialidades inactivas nunca aparecen en la lista.
+        Los parámetros fuera de rango se normalizan a valores por defecto.
+      tags:
+        - Especialidades
+      parameters:
+        - name: pagina
+          in: query
+          description: Número de página (mínimo 1). Se normaliza a 1 si es menor.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limite
+          in: query
+          description: |
+            Cantidad de registros por página (1-100). Se normaliza a 10 fuera de rango.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: ordenar_por
+          in: query
+          description: |
+            Campos ordenables: `id`, `nombre`, `fecha_creacion` + dirección `asc`/`desc`
+            (separado por `_`, p. ej. `id_asc`). Se normaliza a `id_asc` si es inválido.
+          required: false
+          schema:
+            type: string
+            enum:
+              - id_asc
+              - id_desc
+              - nombre_asc
+              - nombre_desc
+              - fecha_creacion_asc
+              - fecha_creacion_desc
+            default: id_asc
+        - name: buscar
+          in: query
+          description: Búsqueda parcial por nombre (LIKE). Vacío = sin filtro.
+          required: false
+          schema:
+            type: string
+            default: ""
+      responses:
+        "200":
+          description: Lista devuelta correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspecialidadCollectionResponse"
+              examples:
+                with_data:
+                  summary: Colección con especialidades
+                  value:
+                    success: true
+                    data:
+                      - id: 24
+                        nombre: "DebugTest-Updated"
+                        descripcion: debug
+                        activo: true
+                        fecha_creacion: "2026-10-07T19:58:14-04:00"
+                        fecha_actualizacion: "2026-10-07T19:59:58-04:00"
+                empty:
+                  summary: Colección vacía
+                  value:
+                    success: true
+                    data: []
+                    message: Especialidades obtenidas correctamente.
+        "400":
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createEspecialidad
+      summary: Crear una nueva especialidad
+      description: |
+        Registra una nueva especialidad médica. Solo se guarda `nombre` y
+        `descripcion`; `activo`, `created_at` y `updated_at` se gestionan en
+        la base de datos.
+      tags:
+        - Especialidades
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEspecialidadRequest"
+            examples:
+              nombre_con_descripcion:
+                summary: Crear con nombre y descripción
+                value:
+                  nombre: "Dermatología"
+                  descripcion: "Atención de la piel, cabello y uñas."
+              nombre_sin_descripcion:
+                summary: Crear solo con nombre
+                value:
+                  nombre: "Cardiología"
+      responses:
+        "201":
+          description: Especialidad creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspecialidadResponse"
+              examples:
+                default:
+                  value:
+                    success: true
+                    data:
+                      id: 25
+                      nombre: "CP-API-07-FullTest"
+                      descripcion: "Fixture prueba completa"
+                      activo: true
+                      fecha_creacion: "2026-10-07T19:58:37-04:00"
+                      fecha_actualizacion: "2026-10-07T19:58:37-04:00"
+                    message: "Especialidad creada correctamente."
+        "400":
+          description: Error de validación (campo requerido, tipo inválido, vacío o demasiado largo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                required:
+                  summary: Campo nombre requerido
+                  value:
+                    success: false
+                    error:
+                      code: FIELD_REQUIRED
+                      message: "El campo 'nombre' es requerido."
+                      field: nombre
+                      details: []
+                    message: "El campo 'nombre' es requerido."
+                empty:
+                  summary: Campo nombre vacío
+                  value:
+                    success: false
+                    error:
+                      code: FIELD_EMPTY
+                      message: "El campo 'nombre' no puede estar vacío."
+                      field: nombre
+                      details: []
+                    message: "El campo 'nombre' no puede estar vacío."
+                type_invalid:
+                  summary: Tipo inválido
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_FIELD_TYPE
+                      message: "El campo 'nombre' debe ser texto."
+                      field: nombre
+                      details: []
+                    message: "El campo 'nombre' debe ser texto."
+        "500":
+          description: Error de base de datos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    success: false
+                    error:
+                      code: INTERNAL_ERROR
+                      message: "No se pudo guardar la especialidad en la base de datos."
+                      field: null
+                      details: []
+                    message: "No se pudo guardar la especialidad en la base de datos."
+  /especialidades/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador único de la especialidad (id_especialidad).
+        schema:
+          type: integer
+          format: int64
+          example: 25
+    get:
+      operationId: getEspecialidad
+      summary: Obtener una especialidad por identificador
+      description: |
+        Devuelve una especialidad activa por su identificador.
+        Si el identificador no existe o la especialidad está inactiva, se devuelve 404.
+      tags:
+        - Especialidades
+      responses:
+        "200":
+          description: Especialidad obtenida correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspecialidadResponse"
+              examples:
+                default:
+                  value:
+                    success: true
+                    data:
+                      id: 25
+                      nombre: "CP-API-07-FullTest"
+                      descripcion: "Fixture prueba completa"
+                      activo: true
+                      fecha_creacion: "2026-10-07T19:58:37-04:00"
+                      fecha_actualizacion: "2026-10-07T19:58:37-04:00"
+                    message: "Especialidad obtenida correctamente."
+        "400":
+          description: Identificador inválido (no entero positivo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid:
+                  summary: Identificador no numérico
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PARAMETER
+                      message: "El identificador debe ser un número entero positivo."
+                      field: id
+                      details: []
+                    message: "El identificador debe ser un número entero positivo."
+        "404":
+          description: Recurso no encontrado o inactivo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                not_found:
+                  summary: Especialidad inactiva
+                  value:
+                    success: false
+                    error:
+                      code: RESOURCE_NOT_FOUND
+                      message: "No se encontró una especialidad activa con el identificador 25."
+                      field: null
+                      details: []
+                    message: "No se encontró una especialidad activa con el identificador 25."
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateEspecialidad
+      summary: Actualizar una especialidad existente
+      description: |
+        Actualiza `nombre` y/o `descripcion` de una especialidad activa.
+        En PUT el campo `nombre` es obligatorio.
+        Solo se actualiza una especialidad activa; si no existe o está inactiva, devuelve 404.
+      tags:
+        - Especialidades
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEspecialidadRequest"
+            examples:
+              standard:
+                summary: Actualizar con nombre y descripción
+                value:
+                  nombre: "Cardiología Pediátrica"
+                  descripcion: "Atención cardiovascular de pacientes pediátricos."
+      responses:
+        "200":
+          description: Especialidad actualizada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspecialidadResponse"
+              examples:
+                default:
+                  value:
+                    success: true
+                    data:
+                      id: 24
+                      nombre: "DebugTest-Updated"
+                      descripcion: "debug"
+                      activo: true
+                      fecha_creacion: "2026-10-07T19:58:14-04:00"
+                      fecha_actualizacion: "2026-10-07T19:59:58-04:00"
+                    message: "Especialidad actualizada correctamente."
+        "400":
+          description: Error de validación (identificador inválido, nombre faltante, vacío, tipo inválido o demasiado largo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                required:
+                  summary: Nombre requerido
+                  value:
+                    success: false
+                    error:
+                      code: FIELD_REQUIRED
+                      message: "El campo 'nombre' es requerido."
+                      field: nombre
+                      details: []
+                    message: "El campo 'nombre' es requerido."
+        "404":
+          description: Recurso no encontrado o inactivo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteEspecialidad
+      summary: Inactivar una especialidad (eliminación lógica)
+      description: |
+        **Inactiva una especialidad estableciendo `activo = false` y actualizando `updated_at`.**
+        **NUNCA elimina físicamente el registro (`DELETE FROM especialidad` no se ejecuta).**
+        El registro sigue existiendo en la base de datos. GET posterior devuelve 404
+        porque solo se muestran especialidades activas.
+        Si la especialidad ya está inactiva, devuelve 404 (no hay doble inactivación).
+      tags:
+        - Especialidades
+      responses:
+        "200":
+          description: Especialidad inactivada (`activo = false`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EspecialidadResponse"
+              examples:
+                default:
+                  value:
+                    success: true
+                    data:
+                      id: 25
+                      nombre: "CP-API-07-FullTest"
+                      descripcion: "Fixture prueba completa"
+                      activo: false
+                      fecha_creacion: "2026-10-07T19:58:37-04:00"
+                      fecha_actualizacion: "2026-10-07T19:58:51-04:00"
+                    message: "Especialidad inactivada correctamente. id=25 (activo=false)."
+        "400":
+          description: Identificador de ruta inválido (no entero positivo)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalid:
+                  summary: Identificador no numérico
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PARAMETER
+                      message: "El identificador debe ser un número entero positivo."
+                      field: id
+                      details: []
+                    message: "El identificador debe ser un número entero positivo."
+        "404":
+          description: Recurso no encontrado o ya inactivo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                already_inactive:
+                  summary: Especialidad ya inactiva
+                  value:
+                    success: false
+                    error:
+                      code: RESOURCE_NOT_FOUND
+                      message: "No existe una especialidad activa con el identificador 23."
+                      field: null
+                      details: []
+                    message: "No existe una especialidad activa con el identificador 23."
+        "500":
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    Especialidad:
+      type: object
+      description: Recurso especialidad médica.
+      required:
+        - id
+        - nombre
+        - activo
+        - fecha_creacion
+        - fecha_actualizacion
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único (id_especialidad, autoincremental).
+          example: 25
+          readOnly: true
+        nombre:
+          type: string
+          description: Nombre de la especialidad.
+          minLength: 1
+          maxLength: 255
+          example: "Cardiología"
+        descripcion:
+          type: string
+          nullable: true
+          description: Descripción de la especialidad. NULLABLE en la base de datos.
+          maxLength: 1024
+          example: "Atención de enfermedades del corazón."
+        activo:
+          type: boolean
+          description: Estado de la especialidad. DEFAULT `true`.
+          example: true
+        fecha_creacion:
+          type: string
+          format: date-time
+          description: Fecha de creación (timestamp with time zone).
+          readOnly: true
+          example: "2026-10-07T19:58:37-04:00"
+        fecha_actualizacion:
+          type: string
+          format: date-time
+          description: Fecha de última actualización (timestamp with time zone).
+          readOnly: true
+          example: "2026-10-07T19:58:37-04:00"
+
+    CreateEspecialidadRequest:
+      type: object
+      description: Cuerpo de petición para POST y PUT.
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          description: Nombre de la especialidad. Requerido (PUT) o requerido (POST).
+          minLength: 1
+          maxLength: 255
+        descripcion:
+          type: string
+          nullable: true
+          description: Descripción de la especialidad. Opcional. Puede ser null o vacío.
+          maxLength: 1024
+
+    HealthResponse:
+      type: object
+      description: Respuesta del endpoint de salud.
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+            database:
+              type: string
+              example: connected
+            timestamp:
+              type: string
+              format: date-time
+            version:
+              type: string
+              example: "1.0.0"
+        message:
+          type: string
+          example: "Servicio disponible"
+
+    EspecialidadResponse:
+      type: object
+      description: Respuesta simple de un recurso especialidad.
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/Especialidad"
+        message:
+          type: string
+          description: Mensaje descriptivo legible por el cliente.
+
+    EspecialidadCollectionResponse:
+      type: object
+      description: Respuesta de lista de especialidades.
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Especialidad"
+        message:
+          type: string
+          description: Mensaje descriptivo legible por el cliente.
+
+    ErrorResponse:
+      type: object
+      description: Respuesta de error normalizada.
+      required:
+        - success
+        - error
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: "#/components/schemas/Error"
+        message:
+          type: string
+          description: Mensaje descriptivo legible por el cliente.
+
+    Error:
+      type: object
+      description: Detalle de un error.
+      required:
+        - code
+        - message
+        - field
+        - details
+      properties:
+        code:
+          type: string
+          description: Identificador único del tipo de error.
+          example: FIELD_REQUIRED
+        message:
+          type: string
+          description: Descripción legible del error.
+          example: "El campo 'nombre' es requerido."
+        field:
+          type: string
+          nullable: true
+          description: Nombre del campo asociado (null si no aplica).
+          example: nombre
+        details:
+          type: array
+          items:
+            type: object
+          description: Detalles adicionales.
+          example: []
+  parameters:
+    {}
+  responses: {}
+  securitySchemes: {}
