@@ -1,0 +1,114 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    color: var(--color-text);
+    background: var(--color-background);
+
+    line-height: 1.6;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+a {
+    color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+    outline: 3px solid
+        rgba(10, 143, 150, 0.35);
+
+    outline-offset: 3px;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+    line-height: 1.15;
+}
+
+p {
+    color: var(--color-text-soft);
+}
+
+::selection {
+    color: #ffffff;
+    background:
+        var(--color-primary-700);
+}
+/* =========================================================
+   ACCESIBILIDAD
+   ========================================================= */
+
+.skip-link {
+    position: fixed;
+
+    top: 12px;
+    left: 12px;
+
+    z-index: 9999;
+
+    padding:
+        10px 16px;
+
+    border-radius:
+        var(--radius-sm);
+
+    color: #ffffff;
+
+    background:
+        var(--color-primary-900);
+
+    text-decoration: none;
+
+    transform:
+        translateY(-150%);
+
+    transition:
+        transform 160ms ease;
+}
+
+
+.skip-link:focus {
+    transform:
+        translateY(0);
+}

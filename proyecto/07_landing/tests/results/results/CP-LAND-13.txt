@@ -1,0 +1,21 @@
+CP-LAND-13 — Auditoría de motion
+
+Skills definidos por manifest:
+review-animations
+improve-animations
+
+Validaciones:
+
+- animaciones discretas;
+- sin movimientos excesivos;
+- sin librerías externas;
+- IntersectionObserver utilizado;
+- prefers-reduced-motion implementado;
+- navegación funcional sin depender de animaciones;
+- menú móvil puede cerrarse con Escape.
+
+Resultado:
+PASSED
+
+HUMAN_STATUS:
+pendiente de aprobación final conjunta.

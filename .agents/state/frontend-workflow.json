@@ -1,16 +1,80 @@
 {
   "workflow": "05_frontend_workflow",
   "phase": "frontend",
+
   "scope": [
     "/login",
     "/dashboard",
-    "/categorias",
-    "/productos"
+    "/especialidades",
+    "/medicos"
   ],
-  "current_checkpoint": "CP-FRONT-01",
-  "technical_status": "BLOCKED",
-  "human_status": "PENDING",
-  "blocked": true,
-  "can_continue": false,
-  "blocked_by": "04_backend_workflow"
+
+  "current_checkpoint": "CP-FRONT-05",
+  "last_completed_checkpoint": "CP-FRONT-04",
+
+  "technical_status": "IN_PROGRESS",
+  "human_status": "APPROVED",
+
+  "blocked": false,
+  "can_continue": true,
+  "blocked_by": null,
+
+  "completed_checkpoints": [
+    {
+      "checkpoint": "CP-FRONT-01",
+      "name": "Login",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "POST /api/v1/auth/login funcionando",
+        "GET /api/v1/auth/me funcionando",
+        "Validación de credenciales incorrectas verificada",
+        "Redirección a /dashboard verificada"
+      ]
+    },
+    {
+      "checkpoint": "CP-FRONT-02",
+      "name": "Dashboard",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "Dashboard accesible con sesión válida",
+        "Usuario autenticado mostrado",
+        "Navegación a módulos funcionando",
+        "Cierre de sesión funcionando"
+      ]
+    },
+    {
+      "checkpoint": "CP-FRONT-03",
+      "name": "Especialidades",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "Listado desde PostgreSQL verificado",
+        "Registro de especialidad verificado",
+        "Edición verificada",
+        "Inactivación lógica verificada"
+      ]
+    },
+    {
+      "checkpoint": "CP-FRONT-04",
+      "name": "Medicos",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "Listado de médicos verificado",
+        "Registro de médico verificado",
+        "Edición de médico verificada",
+        "Inactivación lógica verificada"
+      ]
+    }
+  ],
+
+  "next_checkpoint": "CP-FRONT-05",
+
+  "execution": {
+    "mode": "agent_guided_manual_implementation",
+    "human_in_the_loop": true,
+    "implementation_reviewed_by_human": true
+  }
 }

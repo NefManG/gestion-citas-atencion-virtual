@@ -1,0 +1,86 @@
+{
+  "version": 1,
+
+  "project": "Sistema de Gestión de Citas y Atención Virtual - Hospital Boliviano Español",
+
+  "workflow": "07_landing_workflow",
+
+  "precedence": "REQUISITOS > DECISIONES > WORKFLOW > STATE > GUIDES > SKILLS > IMPLEMENTACION",
+
+  "skills": [
+    {
+      "name": "design-taste-frontend",
+      "source": "https://github.com/tasteskill/tasteskill",
+      "phase": "CREATE",
+      "purpose": "Definir y construir el sistema visual de la Landing hospitalaria.",
+      "required_at": [
+        "CP-LAND-05",
+        "CP-LAND-06",
+        "CP-LAND-07",
+        "CP-LAND-08",
+        "CP-LAND-09"
+      ]
+    },
+
+    {
+      "name": "impeccable",
+      "source": "https://github.com/pbakaus/impeccable",
+      "phase": "POST_CREATE",
+      "purpose": "Auditar y mejorar diseño visual, performance y hardening.",
+      "required_at": [
+        "CP-LAND-12",
+        "CP-LAND-15"
+      ]
+    },
+
+    {
+      "name": "animate",
+      "source": "https://github.com/emilkowalski/skills",
+      "phase": "MOTION_CREATE",
+      "purpose": "Agregar movimiento con propósito y respetando reduced-motion.",
+      "required_at": [
+        "CP-LAND-11"
+      ]
+    },
+
+    {
+      "name": "review-animations",
+      "source": "https://github.com/emilkowalski/skills",
+      "phase": "POST_CREATE",
+      "purpose": "Revisar la calidad y necesidad de las animaciones.",
+      "required_at": [
+        "CP-LAND-13"
+      ]
+    },
+
+    {
+      "name": "improve-animations",
+      "source": "https://github.com/emilkowalski/skills",
+      "phase": "POST_CREATE_READ_ONLY",
+      "purpose": "Proponer mejoras sobre las animaciones existentes.",
+      "required_at": [
+        "CP-LAND-13"
+      ]
+    },
+
+    {
+      "name": "web-design-guidelines",
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "phase": "POST_CREATE",
+      "purpose": "Auditar UI, UX, accesibilidad y buenas prácticas web.",
+      "required_at": [
+        "CP-LAND-14"
+      ]
+    }
+  ],
+
+  "hard_rules": [
+    "Un skill no puede cambiar el stack aprobado.",
+    "Un skill no puede ampliar automáticamente el alcance del proyecto.",
+    "No autoaprobar resultados por haber utilizado un skill.",
+    "Guardar evidencia de auditoría en los archivos de review correspondientes.",
+    "BLOCKER o HIGH impide PASSED hasta resolverse o documentarse y aprobarse explícitamente.",
+    "La aprobación final de cada checkpoint pertenece al humano.",
+    "Los skills deben utilizarse únicamente en los checkpoints definidos por este manifest."
+  ]
+}

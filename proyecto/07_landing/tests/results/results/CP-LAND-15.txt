@@ -1,0 +1,21 @@
+CP-LAND-15 — Performance / Hardening
+
+Criterio definido por manifest:
+impeccable
+
+Validaciones:
+- stack respetado;
+- JavaScript sin dependencias externas;
+- CSS sin frameworks;
+- consultas encapsuladas;
+- runtime READ_ONLY;
+- salida dinámica escapada;
+- sin SQL en public/index.php;
+- errores internos no expuestos;
+- recursos locales optimizados.
+
+Resultado:
+PASSED
+
+HUMAN_STATUS:
+pendiente de aprobación final conjunta.

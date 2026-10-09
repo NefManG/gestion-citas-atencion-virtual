@@ -1,0 +1,19 @@
+CP-LAND-04 — Recursos visuales e imágenes
+
+Fecha: 09-10-2026
+
+Validación realizada:
+
+- política de imágenes revisada;
+- no se utilizarán imágenes de Google Images ni Pinterest;
+- no se utilizarán imágenes generadas mediante IA;
+- no se asociarán fotografías genéricas a médicos reales;
+- primera versión sin fotografías externas;
+- recursos visuales mediante CSS e iconografía neutra;
+- fuentes_imagenes.md actualizado.
+
+Imágenes externas utilizadas: 0
+Imágenes IA utilizadas: 0
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

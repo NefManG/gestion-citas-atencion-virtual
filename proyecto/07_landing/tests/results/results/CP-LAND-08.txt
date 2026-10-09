@@ -1,0 +1,30 @@
+CP-LAND-08 — Médicos
+
+Fecha: 09-10-2026
+
+Skill definido por manifest:
+design-taste-frontend
+
+Validaciones:
+
+- sección Médicos implementada;
+- médicos obtenidos desde PostgreSQL;
+- LandingMedicoRepository utilizado;
+- LandingHospitalService utilizado;
+- solo médicos activos;
+- cero médicos codificados manualmente;
+- salida HTML escapada;
+- médicos sin especialidad asociada manejados correctamente;
+- no se inventaron fotografías;
+- avatares neutros utilizados;
+- modo READ_ONLY;
+- sección responsive.
+
+Datos comprobados durante desarrollo:
+
+Medicos activos: 1
+Ejemplo: Dr. Carlos Mendoza Rojas
+Especialidades asociadas: 0
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: pendiente de aprobación final conjunta.

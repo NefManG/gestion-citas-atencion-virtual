@@ -1,0 +1,19 @@
+CP-LAND-11 — Motion
+
+Fecha: 09-10-2026
+
+Skill definido por manifest:
+animate
+
+Validaciones:
+
+- motion aplicado con propósito;
+- IntersectionObserver utilizado;
+- transiciones discretas;
+- sin librerías externas;
+- CSS y JavaScript separados;
+- prefers-reduced-motion implementado;
+- navegación no depende de animaciones.
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: pendiente de aprobación final conjunta.

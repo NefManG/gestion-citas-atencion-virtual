@@ -1,0 +1,348 @@
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 980px) {
+
+    .site-navigation {
+        display: none;
+    }
+
+    .hero-container {
+        grid-template-columns: 1fr;
+
+        gap: 20px;
+
+        padding-top: 80px;
+    }
+
+    .hero-content {
+        max-width: 760px;
+    }
+
+    .hero h1 {
+        max-width: 760px;
+    }
+
+    .hero-visual {
+        min-height: 430px;
+    }
+
+    .visual-card-one {
+        left: 8%;
+    }
+
+    .visual-card-two {
+        right: 8%;
+    }
+
+    .visual-card-three {
+        left: 18%;
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 650px) {
+
+    .header-container {
+        min-height: 72px;
+    }
+
+    .brand-copy small {
+        display: none;
+    }
+
+    .header-action {
+        display: none;
+    }
+
+    .hero-container {
+        min-height: auto;
+
+        padding-top: 60px;
+        padding-bottom: 50px;
+    }
+
+    .hero h1 {
+        font-size:
+            clamp(42px, 13vw, 58px);
+    }
+
+    .hero-description {
+        font-size: 16px;
+    }
+
+    .hero-primary-action {
+        width: 100%;
+    }
+
+    .hero-visual {
+        min-height: 350px;
+    }
+
+    .hero-cross {
+        width: 150px;
+        height: 150px;
+
+        font-size: 110px;
+    }
+
+    .orbit-one {
+        width: 270px;
+        height: 270px;
+    }
+
+    .orbit-two {
+        width: 330px;
+        height: 330px;
+    }
+
+    .visual-card {
+        min-width: auto;
+
+        max-width: 190px;
+    }
+
+    .visual-card-one {
+        top: 40px;
+        left: 0;
+    }
+
+    .visual-card-two {
+        top: 170px;
+        right: 0;
+    }
+
+    .visual-card-three {
+        bottom: 15px;
+        left: 15px;
+    }
+
+    .information-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .information-item {
+        border-right: 0;
+
+        border-bottom:
+            1px solid
+            var(--color-border);
+    }
+
+    .information-item:last-child {
+        border-bottom: 0;
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+
+        transition-duration:
+            0.01ms !important;
+
+        animation-duration:
+            0.01ms !important;
+
+        animation-iteration-count:
+            1 !important;
+    }
+}
+
+/* =========================================================
+   SECCIONES FINALES
+   ========================================================= */
+
+@media (max-width: 850px) {
+
+    .care-grid {
+        grid-template-columns: 1fr;
+
+        gap:
+            var(--space-10);
+    }
+
+    .benefits-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .final-cta-box {
+        align-items: flex-start;
+
+        flex-direction: column;
+
+        padding:
+            var(--space-10);
+    }
+
+    .final-cta-actions {
+        width: 100%;
+
+        flex-direction: row;
+    }
+
+    .final-cta-actions .button {
+        flex: 1;
+    }
+
+    .public-info-container {
+        grid-template-columns: 1fr;
+
+        gap:
+            var(--space-5);
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .final-cta-box {
+        padding:
+            var(--space-8);
+
+        border-radius:
+            var(--radius-lg);
+    }
+
+    .final-cta-actions {
+        flex-direction: column;
+    }
+
+    .footer-main,
+    .footer-bottom {
+        flex-direction: column;
+    }
+
+    .footer-links {
+        gap:
+            var(--space-4);
+    }
+}
+/* =========================================================
+   NAVEGACIÓN RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 980px) {
+
+    .menu-button {
+        display: flex;
+    }
+
+    .site-navigation {
+        position: absolute;
+
+        top: 72px;
+        left: 20px;
+        right: 20px;
+
+        display: none;
+
+        flex-direction: column;
+        align-items: stretch;
+
+        gap: 4px;
+
+        padding: 12px;
+
+        border:
+            1px solid
+            var(--color-border);
+
+        border-radius:
+            var(--radius-md);
+
+        background:
+            var(--color-surface);
+
+        box-shadow:
+            var(--shadow-md);
+    }
+
+    .site-navigation.is-open {
+        display: flex;
+    }
+
+    .site-navigation a {
+        min-height: 44px;
+
+        display: flex;
+        align-items: center;
+
+        padding:
+            0
+            var(--space-4);
+
+        border-radius:
+            var(--radius-sm);
+    }
+
+    .site-navigation a:hover {
+        background:
+            var(--color-background);
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .site-brand {
+        max-width: 220px;
+    }
+
+    .brand-copy strong {
+        font-size: 13px;
+    }
+
+    .hero-information {
+        overflow: hidden;
+    }
+
+    .specialty-card,
+    .doctor-card,
+    .benefit-card {
+        min-height: auto;
+    }
+
+    .care-panel {
+        padding:
+            var(--space-6);
+    }
+
+    .site-section {
+        padding:
+            56px 0;
+    }
+}
+
+
+/* =========================================================
+   ACCESIBILIDAD DE MOVIMIENTO
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .reveal {
+        opacity: 1 !important;
+
+        transform: none !important;
+
+        transition: none !important;
+    }
+
+    html {
+        scroll-behavior: auto;
+    }
+}

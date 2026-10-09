@@ -1,0 +1,32 @@
+CP-LAND-03 — Capa de datos del Hospital
+
+Fecha: 09-10-2026
+
+Comando ejecutado:
+php proyecto\07_landing\tools\validate_checkpoint.php CP-LAND-03
+
+Resultado:
+
+DATA ACCESS: PASSED
+Especialidades activas: 2
+Medicos activos: 1
+Ejemplo especialidad: Cardiologia
+Ejemplo medico: Dr. Carlos Mendoza Rojas
+Especialidades asociadas: 0
+Runtime: READ_ONLY
+CP-LAND-03: PASSED
+
+Validaciones realizadas:
+- LandingEspecialidadRepository funcionando;
+- LandingMedicoRepository funcionando;
+- LandingHospitalService funcionando;
+- especialidades obtenidas desde PostgreSQL;
+- médicos obtenidos desde PostgreSQL;
+- médicos sin especialidad asociada manejados correctamente;
+- SQL concentrado en Repository;
+- Service sin SQL;
+- runtime READ_ONLY;
+- no se realizaron operaciones INSERT, UPDATE ni DELETE.
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

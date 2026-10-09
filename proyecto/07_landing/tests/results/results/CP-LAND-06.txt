@@ -1,0 +1,23 @@
+CP-LAND-06 — Header + Hero + CTA principal
+
+Fecha: 09-10-2026
+
+Validaciones realizadas:
+
+- Header visible y funcional.
+- Navegación principal visible.
+- Hero renderizado correctamente.
+- Título completo visible.
+- CTA principal funcionando.
+- Diseño hospitalario aplicado.
+- Sin login ni dashboard.
+- Sin funcionalidades administrativas.
+- Responsive base aplicado.
+- No se utilizaron imágenes externas.
+- No se implementó reserva ficticia de citas.
+
+Resultado:
+CP-LAND-06: PASSED
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

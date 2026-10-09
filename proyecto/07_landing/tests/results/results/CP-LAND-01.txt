@@ -1,0 +1,25 @@
+CP-LAND-01 — Contrato y estructura
+
+Fecha: 09-10-2026
+
+Comando ejecutado:
+php proyecto\07_landing\tools\validate_checkpoint.php CP-LAND-01
+
+Resultado:
+
+STRUCTURE: PASSED
+CP-LAND-01: PASSED
+
+Validaciones realizadas:
+- estructura 07_landing creada;
+- separación respecto a 06_codigo;
+- estructura de Views, Services y Repositories verificada;
+- public/index.php sin SQL;
+- public/index.php sin conexión PDO directa;
+- guías de Landing preparadas;
+- decisiones de Landing preparadas;
+- workflow preparado;
+- manifest de skills preparado.
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

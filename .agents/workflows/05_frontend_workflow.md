@@ -1,38 +1,72 @@
-# Workflow 05 — Frontend mínimo
+# Workflow 05 — Frontend Sistema de Gestión de Citas
 
-Precondición: backend PASSED + APPROVED.
+Precondición: Backend PASSED + APPROVED.
 
-Skills: `frontend-engineering`, `frontend-design`; al final `responsive-design`, `accessibility-compliance`.
+Sistema:
+Sistema de Gestión de Citas y Atención Virtual
+Hospital Boliviano Español.
+
+Stack:
+PHP Views + HTML5 + CSS3 + JavaScript ES6+ + Fetch API.
 
 Pantallas permitidas:
-- `/login`
-- `/dashboard`
-- `/categorias`
-- `/productos`
+- /login
+- /dashboard
+- /especialidades
+- /medicos
 
 ## CP-FRONT-01
-Login. STOP.
+Implementar Login consumiendo POST /api/v1/auth/login.
+Validar acceso correcto e incorrecto.
+STOP.
 
 ## CP-FRONT-02
-Layout + dashboard. STOP.
+Implementar layout general y Dashboard.
+
+Mostrar:
+- usuario autenticado;
+- acceso a Especialidades;
+- acceso a Médicos;
+- cerrar sesión.
+
+STOP.
 
 ## CP-FRONT-03
-Listado categorías. STOP.
+Implementar gestión de Especialidades.
+
+Funciones:
+- listar;
+- registrar;
+- editar;
+- inactivar.
+
+Consumir exclusivamente la API existente.
+
+STOP.
 
 ## CP-FRONT-04
-Alta categorías. STOP.
+Implementar gestión de Médicos.
+
+Funciones:
+- listar;
+- registrar;
+- editar;
+- inactivar.
+
+Consumir exclusivamente la API existente.
+
+STOP.
 
 ## CP-FRONT-05
-Edición/inactivación categorías. STOP.
+Validación final del Frontend.
 
-## CP-FRONT-06
-Listado productos. STOP.
+Comprobar:
+- navegación;
+- autenticación;
+- consumo de API;
+- mensajes de error;
+- responsive básico;
+- accesibilidad básica.
 
-## CP-FRONT-07
-Alta productos. STOP.
-
-## CP-FRONT-08
-Edición/inactivación productos. STOP.
-
-## CP-FRONT-09
-Responsive + accesibilidad. `HUMAN_STATUS: PENDING`. No añadir pantallas.
+Finalizar en HUMAN_STATUS: PENDING.
+No ampliar el alcance.

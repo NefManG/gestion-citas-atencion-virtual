@@ -1,0 +1,32 @@
+CP-LAND-05 — Sistema visual
+
+Fecha: 09-10-2026
+
+Skill definido por manifest:
+design-taste-frontend
+
+Elementos preparados:
+
+- variables visuales;
+- paleta hospitalaria;
+- tipografía;
+- sistema de spacing;
+- botones;
+- tarjetas;
+- badges;
+- avatares;
+- contenedores;
+- grids;
+- responsive base;
+- focus visible.
+
+Archivos:
+
+public/assets/css/variables.css
+public/assets/css/base.css
+public/assets/css/layout.css
+public/assets/css/components.css
+docs/decisiones_visuales.md
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

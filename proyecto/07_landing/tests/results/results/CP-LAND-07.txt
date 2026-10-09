@@ -1,0 +1,25 @@
+CP-LAND-07 — Especialidades
+
+Fecha: 09-10-2026
+
+Skill definido por manifest:
+design-taste-frontend
+
+Validaciones:
+
+- sección Especialidades implementada;
+- datos obtenidos desde PostgreSQL;
+- LandingEspecialidadRepository utilizado;
+- LandingHospitalService utilizado;
+- solo especialidades activas;
+- cero especialidades codificadas manualmente;
+- modo READ_ONLY;
+- lista vacía manejada;
+- salida HTML escapada;
+- sección responsive.
+
+Datos comprobados durante desarrollo:
+Especialidades activas: 2
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: pendiente de aprobación final conjunta.

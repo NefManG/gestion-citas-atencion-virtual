@@ -1,0 +1,326 @@
+{
+  "workflow": "07_landing_workflow",
+  "project": "Sistema de Gestión de Citas y Atención Virtual - Hospital Boliviano Español",
+  "phase": "landing",
+
+  "workflow_status": "COMPLETED",
+
+  "current_checkpoint": "CP-LAND-17",
+  "technical_status": "PASSED",
+  "human_status": "APPROVED",
+  "can_continue": false,
+
+  "last_completed_checkpoint": "CP-LAND-17",
+  "next_action": "Workflow de Landing finalizado. Preparar evidencias, documentación y demostración final.",
+
+  "scope": [
+    "landing_publica",
+    "especialidades_activas",
+    "medicos_activos",
+    "informacion_hospitalaria",
+    "cta_informativo",
+    "responsive",
+    "accesibilidad",
+    "motion",
+    "performance",
+    "hardening"
+  ],
+
+  "stack": {
+    "backend": "PHP 8.x",
+    "database": "PostgreSQL",
+    "database_name": "hospital_citas_dev",
+    "data_access": "PDO",
+    "frontend": [
+      "HTML5",
+      "CSS3",
+      "JavaScript ES6+"
+    ]
+  },
+
+  "architecture": {
+    "type": "Landing pública separada del sistema administrativo",
+    "runtime_mode": "READ_ONLY",
+    "flow": "Usuario -> Landing -> View -> Service -> Repository -> PDO -> PostgreSQL"
+  },
+
+  "human_in_the_loop": true,
+
+  "completed_checkpoints": [
+    {
+      "checkpoint": "CP-LAND-01",
+      "name": "Contrato y estructura",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-01.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-02",
+      "name": "Conexión y contrato de datos",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-02.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-03",
+      "name": "Capa de datos del Hospital",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-03.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-04",
+      "name": "Recursos visuales e imágenes",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-04.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-05",
+      "name": "Sistema visual",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "design-taste-frontend"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-05.txt",
+        "proyecto/07_landing/docs/decisiones_visuales.md"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-06",
+      "name": "Header, Hero y CTA principal",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "design-taste-frontend"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-06.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-07",
+      "name": "Especialidades",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "design-taste-frontend"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-07.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-08",
+      "name": "Médicos",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "design-taste-frontend"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-08.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-09",
+      "name": "Atención, beneficios y CTA final",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "design-taste-frontend"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-09.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-10",
+      "name": "Responsive",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-10.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-11",
+      "name": "Motion",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "animate"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-11.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-12",
+      "name": "Auditoría visual",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "impeccable"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-12.txt",
+        "proyecto/07_landing/docs/revision_visual.md"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-13",
+      "name": "Auditoría de movimiento",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "review-animations",
+        "improve-animations"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-13.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-14",
+      "name": "Accesibilidad y UI",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "web-design-guidelines"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-14.txt"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-15",
+      "name": "Performance y hardening",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "skill": [
+        "impeccable"
+      ],
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-15.txt",
+        "proyecto/07_landing/docs/revision_performance.md"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-16",
+      "name": "Validación completa",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "validation": {
+        "structure": "PASSED",
+        "architecture": "PASSED",
+        "read_only": "PASSED",
+        "security": "PASSED",
+        "accessibility": "PASSED",
+        "responsive": "PASSED",
+        "motion": "PASSED",
+        "performance": "PASSED",
+        "database_connection": "PASSED",
+        "active_specialties": 2,
+        "active_doctors": 1
+      },
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-16.txt",
+        "proyecto/07_landing/docs/validacion_final.md"
+      ]
+    },
+    {
+      "checkpoint": "CP-LAND-17",
+      "name": "Cierre",
+      "technical_status": "PASSED",
+      "human_status": "APPROVED",
+      "evidence": [
+        "proyecto/07_landing/tests/results/CP-LAND-17.txt"
+      ]
+    }
+  ],
+
+  "skills": {
+    "design-taste-frontend": [
+      "CP-LAND-05",
+      "CP-LAND-06",
+      "CP-LAND-07",
+      "CP-LAND-08",
+      "CP-LAND-09"
+    ],
+    "animate": [
+      "CP-LAND-11"
+    ],
+    "impeccable": [
+      "CP-LAND-12",
+      "CP-LAND-15"
+    ],
+    "review-animations": [
+      "CP-LAND-13"
+    ],
+    "improve-animations": [
+      "CP-LAND-13"
+    ],
+    "web-design-guidelines": [
+      "CP-LAND-14"
+    ]
+  },
+
+  "evidence": [
+    "proyecto/07_landing/tests/results/CP-LAND-01.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-02.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-03.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-04.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-05.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-06.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-07.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-08.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-09.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-10.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-11.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-12.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-13.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-14.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-15.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-16.txt",
+    "proyecto/07_landing/tests/results/CP-LAND-17.txt",
+    "proyecto/07_landing/docs/fuentes_imagenes.md",
+    "proyecto/07_landing/docs/decisiones_visuales.md",
+    "proyecto/07_landing/docs/revision_visual.md",
+    "proyecto/07_landing/docs/revision_performance.md",
+    "proyecto/07_landing/docs/validacion_final.md"
+  ],
+
+  "final_result": {
+    "landing": "FUNCTIONAL",
+    "database": "CONNECTED",
+    "database_engine": "PostgreSQL",
+    "runtime": "READ_ONLY",
+    "responsive": true,
+    "accessibility": true,
+    "motion": true,
+    "administrative_system_separated": true,
+    "final_validation": "PASSED"
+  },
+
+  "notes": [
+    "La Landing está separada del sistema administrativo.",
+    "La Landing no incorpora login, dashboard ni CRUD.",
+    "El sistema administrativo continúa funcionando de manera independiente.",
+    "Las especialidades y médicos de la Landing se obtienen desde PostgreSQL.",
+    "La Landing utiliza únicamente operaciones de lectura.",
+    "No se inventaron datos de contacto, horarios, precios o disponibilidad.",
+    "No se implementó reserva ficticia de citas.",
+    "CP-LAND-16 finalizó con PASSED."
+  ]
+}

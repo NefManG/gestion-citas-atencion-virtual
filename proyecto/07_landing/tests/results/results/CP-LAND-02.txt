@@ -1,0 +1,26 @@
+CP-LAND-02 — Conexión y contrato de datos
+
+Fecha: 09-10-2026
+
+Comando ejecutado:
+php proyecto\07_landing\tools\validate_checkpoint.php CP-LAND-02
+
+Resultado:
+
+DATABASE: PASSED
+PostgreSQL conectado correctamente.
+Base: hospital_citas_dev
+Runtime Landing: READ_ONLY
+CP-LAND-02: PASSED
+
+Validaciones realizadas:
+- conexión PDO funcionando;
+- motor PostgreSQL verificado;
+- base hospital_citas_dev verificada;
+- configuración separada del código;
+- Landing configurada en modo READ_ONLY;
+- no se crearon nuevas tablas;
+- no se modificaron datos existentes.
+
+TECHNICAL_STATUS: PASSED
+HUMAN_STATUS: PENDING

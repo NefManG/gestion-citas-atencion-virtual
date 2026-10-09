@@ -1,0 +1,25 @@
+CP-LAND-14 — Accesibilidad y UI
+
+Skill definido por manifest:
+web-design-guidelines
+
+Validaciones:
+
+- lang="es";
+- viewport configurado;
+- navegación semántica;
+- aria-label en navegación;
+- aria-expanded en menú móvil;
+- aria-controls utilizado;
+- focus visible;
+- navegación mediante teclado;
+- skip-link implementado;
+- prefers-reduced-motion respetado;
+- textos y enlaces legibles;
+- estructura con header, main, sections y footer.
+
+Resultado:
+PASSED
+
+HUMAN_STATUS:
+pendiente de aprobación final conjunta.
